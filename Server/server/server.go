@@ -28,27 +28,33 @@ type Server struct {
 	ServerName  string
 }
 
+var server Server
+
 var debugPortVoice = "3000"
 var debugPortData = "3001"
 
 func CreateServerRandomName() *Server {
-	return &Server{Address: "localhost", PortVoice: debugPortVoice, PortData: debugPortData, ServerName: GetRandomServerName()}
+	server = Server{Address: "localhost", PortVoice: debugPortVoice, PortData: debugPortData, ServerName: GetRandomServerName()}
+	return &server
 }
 
 func CreateServer(serverName string) *Server {
-	return &Server{Address: "localhost", PortVoice: debugPortVoice, PortData: debugPortData, ServerName: serverName}
+	server = Server{Address: "localhost", PortVoice: debugPortVoice, PortData: debugPortData, ServerName: serverName}
+	return &server
 }
 
 func dataServerBaseURL(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	data := ServerData{
-		ServerName: "Flaming Mango",
-		Users:      []string{"John", "Jake", "Joe", "James"},
+	users := make([]string, len(server.Connections))
+	for i, item := range server.Connections {
+		users[i] = item.Name
 	}
 
+	var serverData ServerData = ServerData{ServerName: server.ServerName, Users: users}
+
 	// Serialize the data to JSON and write it to the response
-	err := json.NewEncoder(w).Encode(data)
+	err := json.NewEncoder(w).Encode(serverData)
 	if err != nil {
 		http.Error(w, "Failed to encode JSON", http.StatusInternalServerError)
 		return
