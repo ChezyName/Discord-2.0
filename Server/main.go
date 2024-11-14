@@ -5,6 +5,6 @@ import (
 )
 
 func main() {
-	_server := server.CreateServer()
+	_server := server.CreateServer("Flaming Mango")
 	server.HostBothServers(_server)
 }

@@ -1,100 +1,78 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
+	"net/http"
 	"time"
 )
 
 // Server will host both UDP server for Voice Data and TCP Server For Server Data
-type Server struct {
-	Address   string
-	PortVoice string
-	PortData  string
+type VoiceConnection struct {
+	Address net.Addr
+	Name    string
 }
 
-func CreateServer() *Server {
-	return &Server{Address: "127.0.0.1", PortVoice: "3000", PortData: "3001"}
+type ServerData struct {
+	ServerName string   `json:"server_name"`
+	Users      []string `json:"users"`
+}
+
+type Server struct {
+	Address     string
+	PortVoice   string
+	PortData    string
+	Connections []VoiceConnection
+	ServerName  string
+}
+
+var debugPortVoice = "3000"
+var debugPortData = "3001"
+
+func CreateServerRandomName() *Server {
+	return &Server{Address: "localhost", PortVoice: debugPortVoice, PortData: debugPortData, ServerName: GetRandomServerName()}
+}
+
+func CreateServer(serverName string) *Server {
+	return &Server{Address: "localhost", PortVoice: debugPortVoice, PortData: debugPortData, ServerName: serverName}
+}
+
+func dataServerBaseURL(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	data := ServerData{
+		ServerName: "Flaming Mango",
+		Users:      []string{"John", "Jake", "Joe", "James"},
+	}
+
+	// Serialize the data to JSON and write it to the response
+	err := json.NewEncoder(w).Encode(data)
+	if err != nil {
+		http.Error(w, "Failed to encode JSON", http.StatusInternalServerError)
+		return
+	}
 }
 
 func HostDataServer(server *Server) {
-	// Resolve TCP address
-	tcpAddr, err := net.ResolveTCPAddr("tcp", server.Address+":"+server.PortData)
+	// Define the route and associate it with the handler
+	http.HandleFunc("/", dataServerBaseURL)
+	serverURLFull := server.Address + ":" + server.PortData
+
+	// Start the HTTPS server with SSL certificate and private key
+	fmt.Println("Starting HTTPS server on " + serverURLFull)
+	err := http.ListenAndServe(serverURLFull, nil)
 	if err != nil {
-		log.Fatal("Error resolving Data Server address:", err)
-		return
+		log.Fatalf("Server failed to start: %v", err)
 	}
-
-	// Start listening for TCP connections
-	tcpListener, err := net.ListenTCP("tcp", tcpAddr)
-	if err != nil {
-		log.Fatal("Error starting Data Server:", err)
-		return
-	}
-	defer tcpListener.Close()
-
-	fmt.Println("Data Server started on: " + server.Address + ":" + server.PortData)
-
-	/*
-		for {
-			// Accept new TCP connection
-			conn, err := tcpListener.AcceptTCP()
-			if err != nil {
-				fmt.Println("Error accepting TCP connection:", err)
-				continue
-			}
-
-			// Handle the connection in a new goroutine
-			go handleTCPConnection(conn)
-		}
-	*/
-}
-
-func HostVoiceServer(server *Server) {
-	// Resolve UDP address
-	udpAddr, err := net.ResolveUDPAddr("udp", server.Address+":"+server.PortVoice)
-	if err != nil {
-		log.Fatal("Error resolving Voice address:", err)
-		return
-	}
-
-	// Start listening for UDP connections
-	udpConn, err := net.ListenUDP("udp", udpAddr)
-	if err != nil {
-		log.Fatal("Error starting Voice server:", err)
-		return
-	}
-	defer udpConn.Close()
-
-	fmt.Println("Voice Server started on: " + server.Address + ":" + server.PortVoice)
-
-	/* DATA RECEVING CODE
-	buffer := make([]byte, 1024)
-	for {
-		// Read data from UDP connection
-		n, addr, err := udpConn.ReadFromUDP(buffer)
-		if err != nil {
-			fmt.Println("Error reading UDP message:", err)
-			continue
-		}
-
-		// Print the received message
-		fmt.Printf("Received from %s: %s\n", addr, string(buffer[:n]))
-
-		// Send a response back
-		response := "Hello from UDP server"
-		_, err = udpConn.WriteToUDP([]byte(response), addr)
-		if err != nil {
-			fmt.Println("Error sending UDP response:", err)
-		}
-	}
-	*/
 }
 
 func HostBothServers(server *Server) {
-	go HostDataServer(server)
-	go HostVoiceServer(server)
+	fmt.Println("Server '" + server.ServerName + "' is Ready")
+
+	HostDataServer(server)
+	//go HostVoiceServer(server)
 
 	//keep servers running
 	select {
