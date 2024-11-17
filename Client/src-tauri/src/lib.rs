@@ -3,7 +3,7 @@ use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration};
 use std::sync::Arc;
 
-#[derive(Debug)]
+#[derive(Default)]
 struct AudioDriver {
     is_connected: bool,
     can_send_audio: bool,
@@ -15,8 +15,13 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<AudioDriver>>>) {
     println!("Running Audio Loop Checks");
 
     let driver_state = Arc::clone(&state);
-
     tauri::async_runtime::spawn(async move {
+        let mut driver = driver_state.lock().await;
+        if driver.is_connected { 
+            println!("Cannot Send Audio, Another Thread is Already Sending Audio");
+            return;
+        }
+
         // Create a UDP socket
         let socket = match tokio::net::UdpSocket::bind("0.0.0.0:0").await {
             Ok(socket) => socket,
@@ -26,21 +31,27 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<AudioDriver>>>) {
             }
         };
 
+        driver.is_connected = true;
+        drop(driver);
+
+        println!("Prepairing Loops");
         // Loop and send data
         loop {
             {
-                let driver = driver_state.lock().await;
+                println!("Sending Audio Packet");
+                let mut driver = driver_state.lock().await;
 
                 // If can_send_audio is false, break the loop
                 if !driver.can_send_audio {
                     println!("Stopping audio loop, can_send_audio is false");
+                    driver.is_connected = false;
                     break;
                 }
 
                 // Clone server_ip to avoid holding the lock during async calls
                 let server_ip = driver.server_ip.clone();
                 drop(driver); // Release the lock before the async call
-                let data = "Hello World".as_bytes();
+                let data = "Audio Packet".as_bytes();
 
                 // Send audio data
                 if let Err(e) = socket.send_to(data, &server_ip).await {
@@ -48,9 +59,6 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<AudioDriver>>>) {
                     break; // Exit the loop if sending fails
                 }
             }
-
-            // Sleep for 1 second before sending the next packet
-            sleep(Duration::from_secs(1)).await;
         }
     });
 }
