@@ -11,7 +11,7 @@
     "tdev": "tauri dev"
   },
   "dependencies": {
-    "@tauri-apps/api": "^2",
+    "@tauri-apps/api": "^2.1.1",
     "@tauri-apps/plugin-shell": "^2",
     "discord2": "file:",
     "react": "^18.2.0",

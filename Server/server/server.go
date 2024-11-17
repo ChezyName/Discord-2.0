@@ -6,7 +6,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"time"
 )
 
 // Server will host both UDP server for Voice Data and TCP Server For Server Data
@@ -74,14 +73,46 @@ func HostDataServer(server *Server) {
 	}
 }
 
+func HostVoiceServer(server *Server) {
+	// Create a UDP address to listen on (e.g., port 8080)
+	address, err := net.ResolveUDPAddr("udp", server.Address+":"+server.PortVoice)
+	if err != nil {
+		fmt.Println("Error resolving address:", err)
+		return
+	}
+
+	// Create a UDP connection to listen for incoming data
+	conn, err := net.ListenUDP("udp", address)
+	if err != nil {
+		fmt.Println("Error listening on address:", err)
+		return
+	}
+	defer conn.Close()
+
+	fmt.Println("UDP server listening on " + server.Address + ":" + server.PortVoice)
+
+	// Buffer to store incoming data
+	buffer := make([]byte, 1024)
+
+	// Read data in a loop
+	for {
+		n, addr, err := conn.ReadFromUDP(buffer)
+		if err != nil {
+			fmt.Println("Error reading from UDP:", err)
+			continue
+		}
+
+		// Print the received data
+		fmt.Printf("Received %d bytes from %s: %s\n", n, addr, string(buffer[:n]))
+	}
+}
+
 func HostBothServers(server *Server) {
 	fmt.Println("Server '" + server.ServerName + "' is Ready")
 
-	HostDataServer(server)
-	//go HostVoiceServer(server)
+	go HostDataServer(server)
+	go HostVoiceServer(server)
 
 	//keep servers running
-	select {
-	case <-time.After(1 * time.Hour): // Just a timeout to keep the program running
-	}
+	select {}
 }
