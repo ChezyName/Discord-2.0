@@ -8,6 +8,7 @@ struct AudioDriver {
     is_connected: bool,
     can_send_audio: bool,
     server_ip: String,
+    socket: Option<tokio::net::UdpSocket>,
 }
 
 #[tauri::command]
@@ -23,13 +24,16 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<AudioDriver>>>) {
         }
 
         // Create a UDP socket
-        let socket = match tokio::net::UdpSocket::bind("0.0.0.0:0").await {
-            Ok(socket) => socket,
-            Err(e) => {
-                eprintln!("Failed to bind UDP socket: {}", e);
-                return;
-            }
-        };
+        if !driver.socket.is_some() {
+            let new_socket = match tokio::net::UdpSocket::bind("0.0.0.0:0").await {
+                Ok(new_socket) => new_socket,
+                Err(e) => {
+                    eprintln!("Failed to bind UDP socket: {}", e);
+                    return;
+                }
+            };
+            driver.socket = Some(new_socket)
+        }
 
         driver.can_send_audio = true;
         drop(driver);
@@ -50,14 +54,20 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<AudioDriver>>>) {
 
                 // Clone server_ip to avoid holding the lock during async calls
                 let server_ip = driver.server_ip.clone();
-                drop(driver); // Release the lock before the async call
                 let data = "Audio Packet".as_bytes();
 
                 // Send audio data
-                if let Err(e) = socket.send_to(data, &server_ip).await {
-                    eprintln!("Failed to send data: {}", e);
-                    break; // Exit the loop if sending fails
+                if let Some(socket) = driver.socket.as_ref() {
+                    if let Err(e) = socket.send_to(data, &server_ip).await {
+                        eprintln!("Failed to send data: {}", e);
+                        break; // Exit the loop if sending fails
+                    }
+                } else {
+                    eprintln!("Socket is not initialized. Cannot send data.");
+                    break; // Exit the loop if the socket is not initialized
                 }
+
+                drop(driver);
             }
         }
     });
@@ -80,6 +90,7 @@ pub fn run() {
         is_connected: false,
         can_send_audio: false, // Set to true for testing
         server_ip: "127.0.0.1:3000".to_string(),
+        socket: None
     }));
 
     tauri::Builder::default()
