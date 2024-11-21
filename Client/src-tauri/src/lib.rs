@@ -17,7 +17,7 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<AudioDriver>>>) {
     let driver_state = Arc::clone(&state);
     tauri::async_runtime::spawn(async move {
         let mut driver = driver_state.lock().await;
-        if driver.is_connected { 
+        if driver.can_send_audio { 
             println!("Cannot Send Audio, Another Thread is Already Sending Audio");
             return;
         }
@@ -31,7 +31,7 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<AudioDriver>>>) {
             }
         };
 
-        driver.is_connected = true;
+        driver.can_send_audio = true;
         drop(driver);
 
         println!("Prepairing Loops");
@@ -63,17 +63,29 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<AudioDriver>>>) {
     });
 }
 
+#[tauri::command]
+fn stop_audio_loop(state: tauri::State<Arc<Mutex<AudioDriver>>>) {
+    let driver_state = Arc::clone(&state);
+    tauri::async_runtime::spawn(async move {
+        let mut driver = driver_state.lock().await;
+        driver.can_send_audio = false;
+        drop(driver);
+        drop(driver_state);
+    });
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let driver = Arc::new(Mutex::new(AudioDriver {
         is_connected: false,
-        can_send_audio: true, // Set to true for testing
+        can_send_audio: false, // Set to true for testing
         server_ip: "127.0.0.1:3000".to_string(),
     }));
 
     tauri::Builder::default()
         .manage(driver)
-        .invoke_handler(tauri::generate_handler![start_audio_loop])
+        .invoke_handler(tauri::generate_handler![stop_audio_loop,start_audio_loop])
+        //.invoke_handler(tauri::generate_handler![stop_audio_loop])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
