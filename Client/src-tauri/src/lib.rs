@@ -9,6 +9,7 @@ struct AudioDriver {
     can_send_audio: bool,
     server_ip: String,
     socket: Option<tokio::net::UdpSocket>,
+    user_name: String,
 }
 
 #[tauri::command]
@@ -36,10 +37,27 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<AudioDriver>>>) {
         }
 
         driver.can_send_audio = true;
-        drop(driver);
 
-        println!("Prepairing Loops");
+        //Send Initial Data Like Username
+        let server_ip = driver.server_ip.clone();
+        let username = driver.user_name.to_owned().clone();
+        let full = "username:".to_string() + &username;
+        let data = full.as_bytes();
+
+        if let Some(socket) = driver.socket.as_ref() {
+            if let Err(e) = socket.send_to(data, &server_ip).await {
+                eprintln!("Failed to send data: {}", e);
+                return; // Exit the loop if sending fails
+            }
+        } else {
+            eprintln!("Socket is not initialized. Cannot send data.");
+            return; // Exit the loop if the socket is not initialized
+        }
+
+        drop(driver);
+        
         // Loop and send data
+        return;
         loop {
             {
                 println!("Sending Audio Packet");
@@ -90,7 +108,8 @@ pub fn run() {
         is_connected: false,
         can_send_audio: false, // Set to true for testing
         server_ip: "127.0.0.1:3000".to_string(),
-        socket: None
+        socket: None,
+        user_name: "Username Not Set".to_string(),
     }));
 
     tauri::Builder::default()

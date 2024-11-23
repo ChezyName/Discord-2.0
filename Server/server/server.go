@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"strings"
 )
 
 // Server will host both UDP server for Voice Data and TCP Server For Server Data
@@ -103,7 +104,37 @@ func HostVoiceServer(server *Server) {
 		}
 
 		// Print the received data
-		fmt.Printf("Received %d bytes from %s: %s\n", n, addr, string(buffer[:n]))
+		//fmt.Printf("Received %d bytes from %s: %s\n", n, addr, string(buffer[:n]))
+		data := string(buffer[:n])
+
+		//Check if User is sending thier username
+		if strings.Contains(data, "username:") {
+			username := strings.Replace(data, "username:", "", 1)
+			fmt.Println("New User: '" + username + "' Has Connected on " + addr.String())
+
+			//Check if user already exists, if not store it part of the list.
+			var index = -1
+			for i, item := range server.Connections {
+				if strings.Compare(item.Address.String(), addr.String()) == 0 {
+					index = i
+					break
+				}
+			}
+
+			var NewVC VoiceConnection = VoiceConnection{
+				Address: addr,
+				Name:    username,
+			}
+
+			if index == -1 {
+				//Create new User
+				server.Connections = append(server.Connections, NewVC)
+			} else {
+				server.Connections[index] = NewVC
+			}
+		} else {
+			//This is Audio Data
+		}
 	}
 }
 
