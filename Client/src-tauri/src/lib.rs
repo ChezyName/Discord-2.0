@@ -17,6 +17,7 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<AudioDriver>>>) {
     println!("Running Audio Loop Checks");
 
     let driver_state = Arc::clone(&state);
+    //Audio Loop
     tauri::async_runtime::spawn(async move {
         let mut driver = driver_state.lock().await;
         if driver.can_send_audio { 
@@ -56,13 +57,13 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<AudioDriver>>>) {
 
         drop(driver);
         
-        // Loop and send data
-        return;
         loop {
             {
-                println!("Sending Audio Packet");
+                //println!("Sending Audio Packet");
                 let mut driver = driver_state.lock().await;
 
+                //================================================================
+                // Audio Sending
                 // If can_send_audio is false, break the loop
                 if !driver.can_send_audio {
                     println!("Stopping audio loop, can_send_audio is false");
@@ -74,11 +75,16 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<AudioDriver>>>) {
                 let server_ip = driver.server_ip.clone();
                 let data = "Audio Packet".as_bytes();
 
-                // Send audio data
+                // Send audio data & recieve audio data
                 if let Some(socket) = driver.socket.as_ref() {
                     if let Err(e) = socket.send_to(data, &server_ip).await {
                         eprintln!("Failed to send data: {}", e);
                         break; // Exit the loop if sending fails
+                    }
+
+                    let mut buf = [0; 1024];
+                    if let Ok((len, addr)) = socket.recv_from(&mut buf).await {
+                        println!("{:?} bytes received from {:?}", len, addr);
                     }
                 } else {
                     eprintln!("Socket is not initialized. Cannot send data.");
