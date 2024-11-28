@@ -7,17 +7,19 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"time"
 )
 
 // Server will host both UDP server for Voice Data and TCP Server For Server Data
 type VoiceConnection struct {
-	Address net.Addr
-	Name    string
+	Address  net.Addr `json:"Address"`
+	Name     string   `json:"Name"`
+	LastSeen int64    `json:"LastConnected"`
 }
 
 type ServerData struct {
-	ServerName string   `json:"server_name"`
-	Users      []string `json:"users"`
+	ServerName string            `json:"server_name"`
+	Users      []VoiceConnection `json:"users"`
 }
 
 type Server struct {
@@ -39,7 +41,7 @@ func CreateServerRandomName() *Server {
 }
 
 func CreateServer(serverName string) *Server {
-	server = Server{Address: "localhost", PortVoice: debugPortVoice, PortData: debugPortData, ServerName: serverName}
+	server = Server{Address: "localhost", PortVoice: debugPortVoice, PortData: debugPortData, ServerName: serverName, Connections: make([]VoiceConnection, 0)}
 	return &server
 }
 
@@ -51,7 +53,7 @@ func dataServerBaseURL(w http.ResponseWriter, r *http.Request) {
 		users[i] = item.Name
 	}
 
-	var serverData ServerData = ServerData{ServerName: server.ServerName, Users: users}
+	var serverData ServerData = ServerData{ServerName: server.ServerName, Users: server.Connections}
 
 	// Serialize the data to JSON and write it to the response
 	err := json.NewEncoder(w).Encode(serverData)
@@ -72,6 +74,16 @@ func HostDataServer(server *Server) {
 	if err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
+}
+
+func findConnectionByAddress(addr net.Addr) (int, *VoiceConnection) {
+	for i, item := range server.Connections {
+		if strings.Compare(item.Address.String(), addr.String()) == 0 {
+			return i, &item
+		}
+	}
+
+	return -1, nil
 }
 
 func HostVoiceServer(server *Server) {
@@ -110,7 +122,6 @@ func HostVoiceServer(server *Server) {
 		//Check if User is sending thier username
 		if strings.Contains(data, "username:") {
 			username := strings.Replace(data, "username:", "", 1)
-			fmt.Println("New User: '" + username + "' Has Connected on " + addr.String())
 
 			//Check if user already exists, if not store it part of the list.
 			var index = -1
@@ -122,27 +133,53 @@ func HostVoiceServer(server *Server) {
 			}
 
 			var NewVC VoiceConnection = VoiceConnection{
-				Address: addr,
-				Name:    username,
+				Address:  addr,
+				Name:     username,
+				LastSeen: time.Now().Unix(),
 			}
 
 			if index == -1 {
 				//Create new User
 				server.Connections = append(server.Connections, NewVC)
+				fmt.Println("New User: '" + username + "' Has Connected on " + addr.String())
 			} else {
 				server.Connections[index] = NewVC
+				fmt.Println("Returning User: '" + username + "' Has Connected on " + addr.String())
 			}
 		} else {
 			//This is Audio Data
 			for _, item := range server.Connections {
 				//send Audio Data if NOT self
-				if item.Address != addr {
+				if strings.Compare(item.Address.String(), addr.String()) == 0 {
 					_, err = conn.WriteToUDP(buffer, addr)
 					if err != nil {
 						fmt.Println("Error sending voice data to {"+addr.String()+"}, err:", err)
 						continue
 					}
 				}
+			}
+
+			//Most likely in Database, change Time
+			connIndex, conn := findConnectionByAddress(addr)
+			if conn != nil {
+				conn.LastSeen = time.Now().Unix()
+				server.Connections[connIndex] = *conn
+			}
+		}
+	}
+}
+
+// clear userlist if inactive for x seconds
+func UserListClearer(timeFrameS int64, server *Server) {
+	for {
+		//Check Last Seen
+		for i, item := range server.Connections {
+			scaledTime := item.LastSeen + timeFrameS
+			if scaledTime <= 0 {
+				fmt.Printf("Removing User, Inactive for %d s", (scaledTime - time.Now().Unix()))
+				//remove from connections
+				server.Connections[i] = server.Connections[len(server.Connections)-1]
+				server.Connections = server.Connections[:len(server.Connections)-1]
 			}
 		}
 	}
@@ -153,6 +190,7 @@ func HostBothServers(server *Server) {
 
 	go HostDataServer(server)
 	go HostVoiceServer(server)
+	go UserListClearer(5, server)
 
 	//keep servers running
 	select {}

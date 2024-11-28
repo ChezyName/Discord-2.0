@@ -68,6 +68,11 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<AudioDriver>>>) {
                 if !driver.can_send_audio {
                     println!("Stopping audio loop, can_send_audio is false");
                     driver.is_connected = false;
+
+                    //Send Goodbye Message
+                    let server_ip = driver.server_ip.clone();
+                    let data = "Audio Packet".as_bytes();
+                    
                     break;
                 }
 
@@ -85,6 +90,7 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<AudioDriver>>>) {
                     let mut buf = [0; 1024];
                     if let Ok((len, addr)) = socket.recv_from(&mut buf).await {
                         println!("{:?} bytes received from {:?}", len, addr);
+                        //Play Audio
                     }
                 } else {
                     eprintln!("Socket is not initialized. Cannot send data.");
