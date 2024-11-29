@@ -4,12 +4,12 @@ import { ServerInformation } from "./SidePanel";
 const DataPort = '3001';
 
 function getDataServerFromAddress(address: string): URL{
+    if(!address.includes(":")){
+        address = address + ":" + DataPort;
+   }
+
     if(!address.includes("http://")){
         address = "http://" + address;
-    }
-
-    if(!address.includes(":")){
-         address = address + ":" + DataPort;
     }
 
     return new URL(address);

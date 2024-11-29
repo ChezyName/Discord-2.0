@@ -114,6 +114,17 @@ fn stop_audio_loop(state: tauri::State<Arc<Mutex<AudioDriver>>>) {
     });
 }
 
+#[tauri::command]
+fn set_server_ip(state: tauri::State<Arc<Mutex<AudioDriver>>>, server_ip: String) {
+    let driver_state = Arc::clone(&state);
+    tauri::async_runtime::spawn(async move {
+        let mut driver = driver_state.lock().await;
+        driver.server_ip = server_ip;
+        drop(driver);
+        drop(driver_state);
+    });
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let driver = Arc::new(Mutex::new(AudioDriver {
@@ -126,7 +137,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .manage(driver)
-        .invoke_handler(tauri::generate_handler![stop_audio_loop,start_audio_loop])
+        .invoke_handler(tauri::generate_handler![stop_audio_loop,start_audio_loop,set_server_ip])
         //.invoke_handler(tauri::generate_handler![stop_audio_loop])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

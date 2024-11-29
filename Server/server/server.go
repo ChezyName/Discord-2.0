@@ -151,7 +151,7 @@ func HostVoiceServer(server *Server) {
 			//This is Audio Data
 			for _, item := range server.Connections {
 				//send Audio Data if NOT self
-				if strings.Compare(item.Address.String(), addr.String()) == 0 {
+				if strings.Compare(item.Address.String(), addr.String()) != 0 {
 					_, err = conn.WriteToUDP(buffer, addr)
 					if err != nil {
 						fmt.Println("Error sending voice data to {"+addr.String()+"}, err:", err)
