@@ -1,9 +1,44 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
+import { getServerData, getServerList } from './FunctionLibrary';
 
-const SidePanel = () => {
+export type ServerInformation = {
+  serverIP: string;
+  serverName: string;
+  users: string[];
+}
+
+const SidePanel = ({setServerIP, setIsConnected}: any) => {
+  const [myServers, setMyServers] = useState<ServerInformation[]>([]);
+
+  useEffect(() => {
+    //Get Init Server Data
+    let serverList = getServerList();
+    let doServerGetData = async (list: string[]) => {
+      let myServerList: ServerInformation[] = [];
+      for(let i = 0; i < list.length; i++){
+        console.log("Getting Data for " + list[i])
+        let data: ServerInformation = await getServerData(list[i]);
+        myServerList.push(data);
+      }
+
+      setMyServers(myServerList);
+    }
+
+    doServerGetData(serverList);
+  }, []);
+
   return (
     <div style={{width: '30%', height: '100%', backgroundColor: 'green'}}>
-        
+        {
+          myServers.length > 0 ? (myServers.map((item) => {
+            console.log("Adding: ", item)
+            return (<button style={{width: '100%', height: "25px"}} onClick={() => {
+              console.log("Connecting to " + item?.serverName + " @ " + item?.serverIP)
+              if(setServerIP) setServerIP(item?.serverIP);
+              if(setIsConnected) setIsConnected(true);
+            }}>{item?.serverName}</button>)
+          })) : ""
+        }
     </div>
   )
 }

@@ -46,6 +46,7 @@ func CreateServer(serverName string) *Server {
 }
 
 func dataServerBaseURL(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "application/json")
 
 	users := make([]string, len(server.Connections))
@@ -176,7 +177,6 @@ func UserListClearer(timeFrameS int64, server *Server) {
 		for i, item := range server.Connections {
 			scaledTime := item.LastSeen + timeFrameS
 			if scaledTime <= 0 {
-				fmt.Printf("Removing User, Inactive for %d s", (scaledTime - time.Now().Unix()))
 				//remove from connections
 				server.Connections[i] = server.Connections[len(server.Connections)-1]
 				server.Connections = server.Connections[:len(server.Connections)-1]
