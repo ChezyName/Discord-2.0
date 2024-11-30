@@ -7,7 +7,7 @@ export type ServerInformation = {
   users: string[];
 }
 
-const SidePanel = ({setServerIP, setIsConnected}: any) => {
+const SidePanel = ({setServerIP, setIsConnected ,setInitServerData}: any) => {
   const [myServers, setMyServers] = useState<ServerInformation[]>([]);
 
   useEffect(() => {
@@ -36,6 +36,7 @@ const SidePanel = ({setServerIP, setIsConnected}: any) => {
               console.log("Connecting to " + item?.serverName + " @ " + item?.serverIP)
               if(setServerIP) setServerIP(item?.serverIP);
               if(setIsConnected) setIsConnected(true);
+              if(setInitServerData) setInitServerData(item);
             }}>{item?.serverName}</button>)
           })) : ""
         }

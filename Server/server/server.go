@@ -31,6 +31,7 @@ type Server struct {
 }
 
 var server Server
+var debugMode = false
 
 var debugPortVoice = "3000"
 var debugPortData = "3001"
@@ -119,6 +120,7 @@ func HostVoiceServer(server *Server) {
 		// Print the received data
 		//fmt.Printf("Received %d bytes from %s: %s\n", n, addr, string(buffer[:n]))
 		data := string(buffer[:n])
+		fmt.Println(data)
 
 		//Check if User is sending thier username
 		if strings.Contains(data, "username:") {
@@ -151,11 +153,13 @@ func HostVoiceServer(server *Server) {
 			//This is Audio Data
 			for _, item := range server.Connections {
 				//send Audio Data if NOT self
-				if strings.Compare(item.Address.String(), addr.String()) != 0 {
+				if strings.Compare(item.Address.String(), addr.String()) != 0 || debugMode {
 					_, err = conn.WriteToUDP(buffer, addr)
 					if err != nil {
 						fmt.Println("Error sending voice data to {"+addr.String()+"}, err:", err)
 						continue
+					} else {
+						fmt.Println("Sending voice data to {" + addr.String() + "}")
 					}
 				}
 			}
@@ -176,7 +180,8 @@ func UserListClearer(timeFrameS int64, server *Server) {
 		//Check Last Seen
 		for i, item := range server.Connections {
 			scaledTime := item.LastSeen + timeFrameS
-			if scaledTime <= 0 {
+			fmt.Println(scaledTime)
+			if scaledTime-time.Now().Unix() <= 0 {
 				//remove from connections
 				server.Connections[i] = server.Connections[len(server.Connections)-1]
 				server.Connections = server.Connections[:len(server.Connections)-1]
@@ -185,12 +190,13 @@ func UserListClearer(timeFrameS int64, server *Server) {
 	}
 }
 
-func HostBothServers(server *Server) {
+func HostBothServers(server *Server, isDebug bool) {
 	fmt.Println("Server '" + server.ServerName + "' is Ready")
+	debugMode = isDebug
 
 	go HostDataServer(server)
 	go HostVoiceServer(server)
-	go UserListClearer(5, server)
+	go UserListClearer(2, server)
 
 	//keep servers running
 	select {}
