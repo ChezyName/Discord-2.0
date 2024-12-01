@@ -2,6 +2,8 @@ use tauri::{AppHandle, Builder};
 use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration};
 use std::sync::Arc;
+use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use cpal::{InputCallbackInfo, OutputCallbackInfo, Sample, SampleFormat, StreamConfig};
 
 #[derive(Default)]
 struct AudioDriver {
@@ -192,4 +194,67 @@ pub fn run() {
         //.invoke_handler(tauri::generate_handler![stop_audio_loop])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+pub async fn execute_audio_debug() -> Result<(), Box<dyn std::error::Error>> {
+    let host = cpal::default_host();
+
+    // Get default input and output devices
+    let input_device = host.default_input_device().expect("Failed to find input device");
+    let output_device = host.default_output_device().expect("Failed to find output device");
+
+    // Get input and output configurations
+    let input_config = input_device.default_input_config()?.into();
+    let output_config = output_device.default_output_config()?.into();
+
+    // Shared buffer between input and output
+    let buffer = Arc::new(Mutex::new(Vec::<f32>::new()));
+
+    // Create the input stream
+    let buffer_clone = Arc::clone(&buffer);
+    let input_stream = input_device.build_input_stream(
+        &input_config,
+        move |data: &[f32], _: &InputCallbackInfo| {
+            let mut buffer = buffer_clone.blocking_lock(); // Use blocking lock
+            buffer.extend_from_slice(data);
+        },
+        |err| {
+            eprintln!("Error in input stream: {}", err);
+        },
+        Some(Duration::from_secs(1)), // Provide an optional latency duration
+    )?;
+
+    // Create the output stream
+    let buffer_clone = Arc::clone(&buffer);
+    let output_stream = output_device.build_output_stream(
+        &output_config,
+        move |output: &mut [f32], _: &OutputCallbackInfo| {
+            let mut buffer = buffer_clone.blocking_lock(); // Use blocking lock
+            let available_samples = buffer.len().min(output.len());
+
+            for (output_sample, input_sample) in output.iter_mut().zip(buffer.drain(..available_samples)) {
+                *output_sample = input_sample;
+            }
+
+            // Fill remaining output with silence if needed
+            for output_sample in output.iter_mut().skip(available_samples) {
+                *output_sample = 0.0;
+            }
+        },
+        |err| {
+            eprintln!("Error in output stream: {}", err);
+        },
+        Some(Duration::from_secs(1)), // Provide an optional latency duration
+    )?;
+
+    // Start the streams
+    input_stream.play()?;
+    output_stream.play()?;
+
+    // Keep the application running
+    println!("Press Enter to stop...");
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input)?;
+
+    Ok(())
 }
