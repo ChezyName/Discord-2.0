@@ -13,6 +13,6 @@ fn main() {
         }
         
         // Run the Tauri application
-        discord2_lib::run();
+        //discord2_lib::run();
     });
 }

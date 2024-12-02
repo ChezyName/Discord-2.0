@@ -4,6 +4,10 @@ use tokio::time::{sleep, Duration};
 use std::sync::Arc;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{InputCallbackInfo, OutputCallbackInfo, Sample, SampleFormat, StreamConfig};
+use ringbuf::{
+    traits::{Consumer, Producer, Split},
+    HeapRb,
+};
 
 #[derive(Default)]
 struct AudioDriver {
@@ -204,8 +208,25 @@ pub async fn execute_audio_debug() -> Result<(), Box<dyn std::error::Error>> {
     let output_device = host.default_output_device().expect("Failed to find output device");
 
     // Get input and output configurations
-    let input_config = input_device.default_input_config()?.into();
-    let output_config = output_device.default_output_config()?.into();
+    let input_config: StreamConfig = input_device.default_input_config()?.into();
+    let output_config: StreamConfig = output_device.default_output_config()?.into();
+
+    println!("Using input device: \"{}\"", input_device.name()?);
+    println!("Using output device: \"{}\"", output_device.name()?);
+
+    // The buffer to share samples
+    //150ms delay
+    let latency_frames = ((1000.0) / 1_000.0) * input_config.sample_rate.0 as f32;
+    let latency_samples = latency_frames as usize * input_config.channels as usize; 
+    let ring = HeapRb::<f32>::new(latency_samples * 2);
+    let (mut producer, mut consumer) = ring.split();
+
+    // Fill the samples with 0.0 equal to the length of the delay.
+    for _ in 0..latency_samples {
+        // The ring buffer has twice as much space as necessary to add latency here,
+        // so this should never fail
+        producer.try_push(0.0).unwrap();
+    }
 
     // Shared buffer between input and output
     let buffer = Arc::new(Mutex::new(Vec::<f32>::new()));
@@ -215,36 +236,45 @@ pub async fn execute_audio_debug() -> Result<(), Box<dyn std::error::Error>> {
     let input_stream = input_device.build_input_stream(
         &input_config,
         move |data: &[f32], _: &InputCallbackInfo| {
-            let mut buffer = buffer_clone.blocking_lock(); // Use blocking lock
-            buffer.extend_from_slice(data);
+            let mut output_fell_behind = false;
+            for &sample in data {
+                if producer.try_push(sample).is_err() {
+                    output_fell_behind = true;
+                }
+            }
+            if output_fell_behind {
+                eprintln!("output stream fell behind: try increasing latency");
+            }
         },
         |err| {
             eprintln!("Error in input stream: {}", err);
         },
-        Some(Duration::from_secs(1)), // Provide an optional latency duration
+        None, // Provide an optional latency duration
     )?;
 
     // Create the output stream
     let buffer_clone = Arc::clone(&buffer);
     let output_stream = output_device.build_output_stream(
         &output_config,
-        move |output: &mut [f32], _: &OutputCallbackInfo| {
-            let mut buffer = buffer_clone.blocking_lock(); // Use blocking lock
-            let available_samples = buffer.len().min(output.len());
-
-            for (output_sample, input_sample) in output.iter_mut().zip(buffer.drain(..available_samples)) {
-                *output_sample = input_sample;
+        move |data: &mut [f32], _: &OutputCallbackInfo| {
+            let mut input_fell_behind = false;
+            for sample in data {
+                *sample = match consumer.try_pop() {
+                    Some(s) => s,
+                    None => {
+                        input_fell_behind = true;
+                        0.0
+                    }
+                };
             }
-
-            // Fill remaining output with silence if needed
-            for output_sample in output.iter_mut().skip(available_samples) {
-                *output_sample = 0.0;
+            if input_fell_behind {
+                eprintln!("input stream fell behind: try increasing latency");
             }
         },
         |err| {
             eprintln!("Error in output stream: {}", err);
         },
-        Some(Duration::from_secs(1)), // Provide an optional latency duration
+        None, // Provide an optional latency duration
     )?;
 
     // Start the streams
@@ -252,9 +282,12 @@ pub async fn execute_audio_debug() -> Result<(), Box<dyn std::error::Error>> {
     output_stream.play()?;
 
     // Keep the application running
-    println!("Press Enter to stop...");
-    let mut input = String::new();
-    std::io::stdin().read_line(&mut input)?;
+    println!("Playing for 5 seconds... ");
+    std::thread::sleep(std::time::Duration::from_secs(5));
+    println!("Ended Audio Loopback ");
+    
+    drop(input_stream);
+    drop(output_stream);
 
     Ok(())
 }
