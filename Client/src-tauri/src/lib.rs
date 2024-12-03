@@ -201,6 +201,13 @@ pub fn run() {
 }
 
 pub async fn execute_audio_debug() -> Result<(), Box<dyn std::error::Error>> {
+    use std::time::Duration;
+    use cpal::{
+        traits::{DeviceTrait, HostTrait, StreamTrait},
+        StreamConfig,
+    };
+    use rtrb::HeapRb;
+
     let host = cpal::default_host();
 
     // Get default input and output devices
@@ -214,67 +221,45 @@ pub async fn execute_audio_debug() -> Result<(), Box<dyn std::error::Error>> {
     println!("Using input device: \"{}\"", input_device.name()?);
     println!("Using output device: \"{}\"", output_device.name()?);
 
-    // The buffer to share samples
-    //150ms delay
-    let latency_frames = ((1000.0) / 1_000.0) * input_config.sample_rate.0 as f32;
-    let latency_samples = latency_frames as usize * input_config.channels as usize; 
-    let ring = HeapRb::<f32>::new(latency_samples * 2);
+    // Calculate the number of samples to keep for 1 second
+    let sample_rate = input_config.sample_rate.0 as usize;
+    let channels = input_config.channels as usize;
+    let samples_per_second = sample_rate * channels;
+
+    // Create a ring buffer to hold 1 second of audio
+    let ring = HeapRb::<f32>::new(samples_per_second);
     let (mut producer, mut consumer) = ring.split();
 
-    // Fill the samples with 0.0 equal to the length of the delay.
-    for _ in 0..latency_samples {
-        // The ring buffer has twice as much space as necessary to add latency here,
-        // so this should never fail
-        producer.try_push(0.0).unwrap();
-    }
-
-    // Shared buffer between input and output
-    let buffer = Arc::new(Mutex::new(Vec::<f32>::new()));
-
     // Create the input stream
-    let buffer_clone = Arc::clone(&buffer);
     let input_stream = input_device.build_input_stream(
         &input_config,
-        move |data: &[f32], _: &InputCallbackInfo| {
-            let mut output_fell_behind = false;
+        move |data: &[f32], _: &cpal::InputCallbackInfo| {
             for &sample in data {
-                if producer.try_push(sample).is_err() {
-                    output_fell_behind = true;
+                if producer.is_full() {
+                    // Overwrite the oldest data
+                    producer.pop();
                 }
-            }
-            if output_fell_behind {
-                eprintln!("output stream fell behind: try increasing latency");
+                producer.push(sample).expect("Failed to write to producer");
             }
         },
         |err| {
             eprintln!("Error in input stream: {}", err);
         },
-        None, // Provide an optional latency duration
+        None, // Optional latency duration
     )?;
 
     // Create the output stream
-    let buffer_clone = Arc::clone(&buffer);
     let output_stream = output_device.build_output_stream(
         &output_config,
-        move |data: &mut [f32], _: &OutputCallbackInfo| {
-            let mut input_fell_behind = false;
-            for sample in data {
-                *sample = match consumer.try_pop() {
-                    Some(s) => s,
-                    None => {
-                        input_fell_behind = true;
-                        0.0
-                    }
-                };
-            }
-            if input_fell_behind {
-                eprintln!("input stream fell behind: try increasing latency");
+        move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
+            for sample in data.iter_mut() {
+                *sample = consumer.pop().unwrap_or(0.0); // Output silence if buffer is empty
             }
         },
         |err| {
             eprintln!("Error in output stream: {}", err);
         },
-        None, // Provide an optional latency duration
+        None, // Optional latency duration
     )?;
 
     // Start the streams
@@ -282,10 +267,11 @@ pub async fn execute_audio_debug() -> Result<(), Box<dyn std::error::Error>> {
     output_stream.play()?;
 
     // Keep the application running
-    println!("Playing for 5 seconds... ");
-    std::thread::sleep(std::time::Duration::from_secs(5));
-    println!("Ended Audio Loopback ");
-    
+    println!("Streaming audio for 10 seconds...");
+    std::thread::sleep(Duration::from_secs(10));
+    println!("Audio streaming ended.");
+
+    // Drop streams to stop audio processing
     drop(input_stream);
     drop(output_stream);
 
