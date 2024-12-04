@@ -245,16 +245,15 @@ pub async fn execute_audio_debug() -> Result<(), Box<dyn std::error::Error>> {
         &input_config,
         move |data: &[f32], _: &InputCallbackInfo| {
             let mut producer = input_producer.blocking_lock();
-            for &sample in data {
-                producer.try_push(sample).unwrap();
-                //println!("Input: {}",sample)
-                /*
-                if producer.try_push(sample).is_err() {
-                    // Overwrite oldest samples if the buffer is full
-                    producer.try_pop();
+            //turn from stereo to mono by skipping every other sample
+            if(input_config.channels == 1) {
+                //Is Mono
+                for &sample in data {
                     producer.try_push(sample).unwrap();
                 }
-                */
+            } else {
+                //Could be 2 or more
+
             }
         },
         |err| eprintln!("Error in input stream: {}", err),
@@ -267,9 +266,18 @@ pub async fn execute_audio_debug() -> Result<(), Box<dyn std::error::Error>> {
         &output_config,
         move |data: &mut [f32], _: &OutputCallbackInfo| {
             let mut consumer = output_consumer.blocking_lock();
-            for sample in data.iter_mut() {
-                *sample = consumer.try_pop().unwrap_or(0.0); // Play silence if buffer is empty
-                //println!("Output: {}",sample)
+            let mut previous_sample = 0.0;
+
+            // Ensure the output buffer is filled for both left and right channels
+            for (i, sample) in data.iter_mut().enumerate() {
+                if i % output_config.channels as usize == 0 {
+                    // Left channel: fetch a new sample from the consumer
+                    previous_sample = consumer.try_pop().unwrap_or(0.0);
+                    *sample = previous_sample;
+                } else {
+                    // Right channel: reuse the same sample as the left channel
+                    *sample = previous_sample;
+                }
             }
         },
         |err| eprintln!("Error in output stream: {}", err),
