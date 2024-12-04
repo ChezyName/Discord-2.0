@@ -1,9 +1,9 @@
 use tauri::{AppHandle, Builder};
 use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration};
-use std::sync::Arc;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{InputCallbackInfo, OutputCallbackInfo, Sample, SampleFormat, StreamConfig};
+use cpal::{InputCallbackInfo, OutputCallbackInfo, StreamConfig};
+use std::sync::Arc;
 use ringbuf::{
     traits::{Consumer, Producer, Split},
     HeapRb,
@@ -201,13 +201,7 @@ pub fn run() {
 }
 
 pub async fn execute_audio_debug() -> Result<(), Box<dyn std::error::Error>> {
-    use std::time::Duration;
-    use cpal::{
-        traits::{DeviceTrait, HostTrait, StreamTrait},
-        StreamConfig,
-    };
-    use rtrb::HeapRb;
-
+    // Initialize the default audio host
     let host = cpal::default_host();
 
     // Get default input and output devices
@@ -221,59 +215,77 @@ pub async fn execute_audio_debug() -> Result<(), Box<dyn std::error::Error>> {
     println!("Using input device: \"{}\"", input_device.name()?);
     println!("Using output device: \"{}\"", output_device.name()?);
 
-    // Calculate the number of samples to keep for 1 second
+    println!(
+        "Using input config: sample rate: {}, channels: {}",
+        input_config.sample_rate.0,
+        input_config.channels
+    );
+    
+    println!(
+        "Using output config: sample rate: {}, channels: {}",
+        output_config.sample_rate.0,
+        output_config.channels
+    );
+
+    // Calculate buffer size
     let sample_rate = input_config.sample_rate.0 as usize;
     let channels = input_config.channels as usize;
-    let samples_per_second = sample_rate * channels;
+    let buffer_capacity = sample_rate * channels; // Buffer for 1 second of audio
 
-    // Create a ring buffer to hold 1 second of audio
-    let ring = HeapRb::<f32>::new(samples_per_second);
-    let (mut producer, mut consumer) = ring.split();
+    // Create ring buffer for raw audio
+    let ring = HeapRb::<f32>::new(buffer_capacity);
+    let (producer, consumer) = ring.split();
 
-    // Create the input stream
+    let producer = Arc::new(Mutex::new(producer));
+    let consumer = Arc::new(Mutex::new(consumer));
+
+    // Input stream
+    let input_producer = Arc::clone(&producer);
     let input_stream = input_device.build_input_stream(
         &input_config,
-        move |data: &[f32], _: &cpal::InputCallbackInfo| {
+        move |data: &[f32], _: &InputCallbackInfo| {
+            let mut producer = input_producer.blocking_lock();
             for &sample in data {
-                if producer.is_full() {
-                    // Overwrite the oldest data
-                    producer.pop();
+                producer.try_push(sample).unwrap();
+                //println!("Input: {}",sample)
+                /*
+                if producer.try_push(sample).is_err() {
+                    // Overwrite oldest samples if the buffer is full
+                    producer.try_pop();
+                    producer.try_push(sample).unwrap();
                 }
-                producer.push(sample).expect("Failed to write to producer");
+                */
             }
         },
-        |err| {
-            eprintln!("Error in input stream: {}", err);
-        },
-        None, // Optional latency duration
+        |err| eprintln!("Error in input stream: {}", err),
+        None,
     )?;
 
-    // Create the output stream
+    // Output stream
+    let output_consumer = Arc::clone(&consumer);
     let output_stream = output_device.build_output_stream(
         &output_config,
-        move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
+        move |data: &mut [f32], _: &OutputCallbackInfo| {
+            let mut consumer = output_consumer.blocking_lock();
             for sample in data.iter_mut() {
-                *sample = consumer.pop().unwrap_or(0.0); // Output silence if buffer is empty
+                *sample = consumer.try_pop().unwrap_or(0.0); // Play silence if buffer is empty
+                //println!("Output: {}",sample)
             }
         },
-        |err| {
-            eprintln!("Error in output stream: {}", err);
-        },
-        None, // Optional latency duration
+        |err| eprintln!("Error in output stream: {}", err),
+        None,
     )?;
 
     // Start the streams
     input_stream.play()?;
     output_stream.play()?;
 
-    // Keep the application running
-    println!("Streaming audio for 10 seconds...");
-    std::thread::sleep(Duration::from_secs(10));
-    println!("Audio streaming ended.");
+    println!("Audio loopback started. Running for 10 seconds...");
 
-    // Drop streams to stop audio processing
-    drop(input_stream);
-    drop(output_stream);
+    // Run for 10 seconds
+    sleep(Duration::from_secs(10)).await;
+
+    println!("Audio loopback ended.");
 
     Ok(())
 }
