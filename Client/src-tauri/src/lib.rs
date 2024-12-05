@@ -230,7 +230,7 @@ pub async fn execute_audio_debug() -> Result<(), Box<dyn std::error::Error>> {
     // Calculate buffer size
     let sample_rate = input_config.sample_rate.0 as usize;
     let channels = input_config.channels as usize;
-    let buffer_capacity = sample_rate * channels; // Buffer for 1 second of audio
+    let buffer_capacity = sample_rate * channels; // Buffer for 1 second of samples
 
     // Create ring buffer for raw audio
     let ring = HeapRb::<f32>::new(buffer_capacity);
@@ -252,8 +252,29 @@ pub async fn execute_audio_debug() -> Result<(), Box<dyn std::error::Error>> {
                     producer.try_push(sample).unwrap();
                 }
             } else {
-                //Could be 2 or more
+                //Could be 2 or more, Usually 2
+                let mono_samples: [f32, input_config.channels as i16];
+                let init_loop = true;
+                for (i, &sample) in data.iter_mut().enumerate() {
+                    let index = i % input_config.channels;
+                    if i % input_config.channels as i16 == 0 {
+                        if init_loop { init_loop = false }
+                        else {
+                            //average of the samples.
+                            let average_sample = 0;
+                            for val in mono_samples.iter() {
+                                average_sample += val;
+                            }
 
+                            average_sample /= input_config.channels as f32;
+                            producer.try_push(average_sample).unwrap();
+                        }
+                        mono_samples.fill(0);
+                    }
+                    else {
+                        mono_samples[index];
+                    }
+                }
             }
         },
         |err| eprintln!("Error in input stream: {}", err),
