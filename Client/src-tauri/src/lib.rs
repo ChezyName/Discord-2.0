@@ -241,40 +241,42 @@ pub async fn execute_audio_debug() -> Result<(), Box<dyn std::error::Error>> {
 
     // Input stream
     let input_producer = Arc::clone(&producer);
+    let input_consumer = Arc::clone(&consumer);
     let input_stream = input_device.build_input_stream(
         &input_config,
         move |data: &[f32], _: &InputCallbackInfo| {
             let mut producer = input_producer.blocking_lock();
             //turn from stereo to mono by skipping every other sample
-            if(input_config.channels == 1) {
-                //Is Mono
-                for &sample in data {
-                    producer.try_push(sample).unwrap();
-                }
-            } else {
-                //Could be 2 or more, Usually 2
-                let mono_samples: [f32, input_config.channels as i16];
-                let init_loop = true;
-                for (i, &sample) in data.iter_mut().enumerate() {
-                    let index = i % input_config.channels;
-                    if i % input_config.channels as i16 == 0 {
-                        if init_loop { init_loop = false }
-                        else {
-                            //average of the samples.
-                            let average_sample = 0.0;
-                            for val in mono_samples.iter() {
-                                average_sample += val;
-                            }
+            // Mutable buffer for mono_samples
+            let mut mono_samples = vec![0.0; input_config.channels as usize];
+            let mut init_loop = input_config.channels != 0;
 
-                            average_sample /= input_config.channels as f32;
-                            producer.try_push(average_sample).unwrap();
+            for (i, &sample) in data.iter().enumerate() {
+                // Dereference the immutable `&sample` to get the value
+                let index = i % input_config.channels as usize;
+
+                if i % input_config.channels as usize == 0 {
+                    if init_loop {
+                        init_loop = false;
+                    } else {
+                        // Compute average
+                        let average_sample: f32 = mono_samples.iter().sum::<f32>() / input_config.channels as f32;
+                        if producer.is_full() {
+                            //pop and continue
+                            //let mut consumer = input_consumer.blocking_lock();
+                            //consumer.try_pop();
+                            //drop(consumer);
+                            println!("Ringbuffer is Full...")
                         }
-                        mono_samples.fill(0);
+                        producer.try_push(average_sample).unwrap();
                     }
-                    else {
-                        mono_samples[index];
-                    }
+
+                    mono_samples.clear();
+                    mono_samples.resize(input_config.channels as usize, 0.0); // Reset to correct size
                 }
+
+                // Store the value in the mutable buffer
+                mono_samples[index] = sample;
             }
         },
         |err| eprintln!("Error in input stream: {}", err),
