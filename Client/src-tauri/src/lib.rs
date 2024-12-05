@@ -5,7 +5,7 @@ use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{InputCallbackInfo, OutputCallbackInfo, StreamConfig};
 use std::sync::Arc;
 use ringbuf::{
-    traits::{Consumer, Producer, Split},
+    traits::*,
     HeapRb,
 };
 
@@ -236,6 +236,9 @@ pub async fn execute_audio_debug() -> Result<(), Box<dyn std::error::Error>> {
     let ring = HeapRb::<f32>::new(buffer_capacity);
     let (producer, consumer) = ring.split();
 
+    let buf = HeapRb::<f32>::new(buffer_capacity);
+    let (mut prod, mut cons) = buf.split();
+
     let producer = Arc::new(Mutex::new(producer));
     let consumer = Arc::new(Mutex::new(consumer));
 
@@ -261,14 +264,11 @@ pub async fn execute_audio_debug() -> Result<(), Box<dyn std::error::Error>> {
                     } else {
                         // Compute average
                         let average_sample: f32 = mono_samples.iter().sum::<f32>() / input_config.channels as f32;
-                        if producer.is_full() {
+                        if prod.is_full() {
                             //pop and continue
-                            //let mut consumer = input_consumer.blocking_lock();
-                            //consumer.try_pop();
-                            //drop(consumer);
                             println!("Ringbuffer is Full...")
                         }
-                        producer.try_push(average_sample).unwrap();
+                        else { prod.try_push(average_sample).unwrap(); }
                     }
 
                     mono_samples.clear();
@@ -295,7 +295,7 @@ pub async fn execute_audio_debug() -> Result<(), Box<dyn std::error::Error>> {
             for (i, sample) in data.iter_mut().enumerate() {
                 if i % output_config.channels as usize == 0 {
                     // Left channel: fetch a new sample from the consumer
-                    previous_sample = consumer.try_pop().unwrap_or(0.0);
+                    previous_sample = cons.try_pop().unwrap_or(0.0);
                     *sample = previous_sample;
                 } else {
                     // Right channel: reuse the same sample as the left channel
