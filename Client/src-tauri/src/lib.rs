@@ -230,7 +230,7 @@ pub async fn execute_audio_debug() -> Result<(), Box<dyn std::error::Error>> {
     // Calculate buffer size
     let sample_rate = input_config.sample_rate.0 as usize;
     let channels = input_config.channels as usize;
-    let buffer_capacity = sample_rate * channels; // Buffer for 1 second of samples
+    let buffer_capacity = sample_rate; // Buffer for 1 second of samples {force only 48khz}
 
     // Create ring buffer for raw audio
     let ring = HeapRb::<f32>::new(buffer_capacity);
@@ -261,7 +261,7 @@ pub async fn execute_audio_debug() -> Result<(), Box<dyn std::error::Error>> {
                         if init_loop { init_loop = false }
                         else {
                             //average of the samples.
-                            let average_sample = 0;
+                            let average_sample = 0.0;
                             for val in mono_samples.iter() {
                                 average_sample += val;
                             }
@@ -309,12 +309,10 @@ pub async fn execute_audio_debug() -> Result<(), Box<dyn std::error::Error>> {
     input_stream.play()?;
     output_stream.play()?;
 
-    println!("Audio loopback started. Running for 10 seconds...");
-
-    // Run for 10 seconds
-    sleep(Duration::from_secs(10)).await;
-
-    println!("Audio loopback ended.");
+    println!("Audio loopback started.");
+    println!("Press Enter to stop...");
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input)?;
 
     Ok(())
 }
