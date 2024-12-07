@@ -212,6 +212,9 @@ pub async fn execute_audio_debug() -> Result<(), Box<dyn std::error::Error>> {
     let input_config: StreamConfig = input_device.default_input_config()?.into();
     let output_config: StreamConfig = output_device.default_output_config()?.into();
 
+    //if(input_config.sample_rate > output_config.sample_rate) { input_config.sample_rate.0 = output_config.sample_rate }
+    //else if(input_config.sample_rate < output_config.sample_rate) { output_config.sample_rate.0 = input_config.sample_rate }
+
     println!("Using input device: \"{}\"", input_device.name()?);
     println!("Using output device: \"{}\"", output_device.name()?);
 
@@ -232,51 +235,20 @@ pub async fn execute_audio_debug() -> Result<(), Box<dyn std::error::Error>> {
     let channels = input_config.channels as usize;
     let buffer_capacity = sample_rate; // Buffer for 1 second of samples {force only 48khz}
 
-    // Create ring buffer for raw audio
-    let ring = HeapRb::<f32>::new(buffer_capacity);
-    let (producer, consumer) = ring.split();
-
-    let buf = HeapRb::<f32>::new(buffer_capacity);
+    //2 Channel 48khz audio.
+    let buf = HeapRb::<f32>::new(buffer_capacity * 2);
     let (mut prod, mut cons) = buf.split();
 
-    let producer = Arc::new(Mutex::new(producer));
-    let consumer = Arc::new(Mutex::new(consumer));
-
-    // Input stream
-    let input_producer = Arc::clone(&producer);
-    let input_consumer = Arc::clone(&consumer);
     let input_stream = input_device.build_input_stream(
         &input_config,
         move |data: &[f32], _: &InputCallbackInfo| {
-            let mut producer = input_producer.blocking_lock();
             //turn from stereo to mono by skipping every other sample
             // Mutable buffer for mono_samples
             let mut mono_samples = vec![0.0; input_config.channels as usize];
             let mut init_loop = input_config.channels != 0;
 
             for (i, &sample) in data.iter().enumerate() {
-                // Dereference the immutable `&sample` to get the value
-                let index = i % input_config.channels as usize;
-
-                if i % input_config.channels as usize == 0 {
-                    if init_loop {
-                        init_loop = false;
-                    } else {
-                        // Compute average
-                        let average_sample: f32 = mono_samples.iter().sum::<f32>() / input_config.channels as f32;
-                        if prod.is_full() {
-                            //pop and continue
-                            println!("Ringbuffer is Full...")
-                        }
-                        else { prod.try_push(average_sample).unwrap(); }
-                    }
-
-                    mono_samples.clear();
-                    mono_samples.resize(input_config.channels as usize, 0.0); // Reset to correct size
-                }
-
-                // Store the value in the mutable buffer
-                mono_samples[index] = sample;
+                prod.try_push(sample).unwrap();
             }
         },
         |err| eprintln!("Error in input stream: {}", err),
@@ -284,11 +256,9 @@ pub async fn execute_audio_debug() -> Result<(), Box<dyn std::error::Error>> {
     )?;
 
     // Output stream
-    let output_consumer = Arc::clone(&consumer);
     let output_stream = output_device.build_output_stream(
         &output_config,
         move |data: &mut [f32], _: &OutputCallbackInfo| {
-            let mut consumer = output_consumer.blocking_lock();
             let mut previous_sample = 0.0;
 
             // Ensure the output buffer is filled for both left and right channels
