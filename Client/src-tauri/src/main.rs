@@ -4,6 +4,6 @@
 mod audiodriver;
 
 fn main() {
-    audiodriver::run_audio_loop();
+    audiodriver::run_audio_debugger();
     //discord2_lib::run();
 }
