@@ -149,4 +149,14 @@ impl AudioDriver {
     fn get_audio(&self) {
 
     }
+
+    //changes the input device
+    fn swap_audio_input(&self, input_device str) {
+
+    }
+
+    //changes the ouput device
+    fn swap_audio_ouput(&self, input_device str) {
+
+    }
 }
