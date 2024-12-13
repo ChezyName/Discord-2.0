@@ -1,12 +1,17 @@
 use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
     InputCallbackInfo, OutputCallbackInfo, StreamConfig,
+    Host, Device
 };
 use ringbuf::{
     traits::*,
+    wrap::caching::Caching,
+    storage::Heap,
     HeapRb,
+    SharedRb
 };
 use samplerate::{convert, ConverterType};
+use std::sync::Arc;
 
 pub fn run_audio_debugger() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize the default audio host
@@ -101,14 +106,17 @@ pub fn run_audio_debugger() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 //Use this to connect with both the input and output
-struct AudioDriver {
-    buffer: HeapRb::<f32>,
-    prod: Caching<Arc<SharedRb<f32>>,
-    cons: Caching<Arc<SharedRb<f32>>,
+pub struct AudioDriver {
+    prod: Caching<Arc<SharedRb<Heap<f32>>>, true, false>,
+    cons: Caching<Arc<SharedRb<Heap<f32>>>, false, true>,
+
+    host: Host,
+    input_device: Device,
+    output_device: Device,
 }
 
 impl AudioDriver {
-    fn new() -> Self {
+    pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
         // Initialize the default audio host
         let host = cpal::default_host();
 
@@ -136,27 +144,72 @@ impl AudioDriver {
         let ring = HeapRb::<f32>::new(buffer_capacity * 2);
         let (mut producer, mut consumer) = ring.split();
 
-        Self {
-            buffer: ring,
+        Ok(Self {
             prod: producer,
             cons: consumer,
+
+            host: host,
+            input_device: input_device,
+            output_device: output_device,
+        })
+    }
+
+    /*
+    pub fn get_output_devices(&self) {
+        // Iterate through available devices from the host
+        for device in self.host.devices().unwrap() {
+            // Check if the device supports output
+            if let Ok(configs) = device.supported_output_configs() {
+                println!("Output Device: {}", device.name().unwrap_or("Unknown Device".to_string()));
+                
+                // Optional: Print supported configurations
+                for config in configs {
+                    println!(
+                        "  Channels: {}, Sample Rates: {}-{}, Sample Format: {:?}",
+                        config.channels(),
+                        config.min_sample_rate().0,
+                        config.max_sample_rate().0,
+                        config.sample_format()
+                    );
+                }
+            }
         }
+    }
+
+    pub fn start_audio_capture(&mut self) {
+        let input_stream = input_device.build_input_stream(
+            &input_config,
+            move |data: &[f32], _: &InputCallbackInfo| {
+                // Push audio samples to the producer
+                for &sample in data {
+                    if !producer.is_full() {
+                        //turn mono to 2 channel
+                        if(input_config.channels == 1) { producer.try_push(sample).unwrap(); }
+                        producer.try_push(sample).unwrap();
+                    }
+                }
+            },
+            |err| eprintln!("Error in input stream: {}", err),
+            None,
+        )?;
+        input_stream.play()?;
     }
 
     //Returns the last 20ms of audio or sample_rate * 0.2;
     //If sample rate is 44800 then return 896 samples.
     //Additionally compresses using Opus.
-    fn get_audio(&self) {
+    pub fn get_audio(&mut self) {
 
     }
 
     //changes the input device
-    fn swap_audio_input(&self, input_device str) {
+    pub fn swap_audio_input(&mut self, input_device: &str) {
 
     }
 
     //changes the ouput device
-    fn swap_audio_ouput(&self, input_device str) {
+    pub fn swap_audio_ouput(&mut self, input_device: &str) {
 
     }
+    */
 }

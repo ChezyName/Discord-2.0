@@ -4,6 +4,15 @@
 mod audiodriver;
 
 fn main() {
-    audiodriver::run_audio_debugger();
+    //audiodriver::run_audio_debugger();
     //discord2_lib::run();
+
+    match audiodriver::AudioDriver::new() {
+        Ok(driver) => {
+            //driver.get_output_devices();  // Works because get_output_devices borrows self
+        }
+        Err(e) => {
+            eprintln!("Error initializing AudioDriver: {}", e);
+        }
+    }
 }
