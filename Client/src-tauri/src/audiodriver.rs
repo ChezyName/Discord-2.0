@@ -154,7 +154,6 @@ impl AudioDriver {
         })
     }
 
-    /*
     pub fn get_output_devices(&self) {
         // Iterate through available devices from the host
         for device in self.host.devices().unwrap() {
@@ -176,6 +175,28 @@ impl AudioDriver {
         }
     }
 
+    pub fn get_input_devices(&self) {
+        // Iterate through available devices from the host
+        for device in self.host.devices().unwrap() {
+            // Check if the device supports output
+            if let Ok(configs) = device.supported_input_configs() {
+                println!("Input Device: {}", device.name().unwrap_or("Unknown Device".to_string()));
+                
+                // Optional: Print supported configurations
+                for config in configs {
+                    println!(
+                        "  Channels: {}, Sample Rates: {}-{}, Sample Format: {:?}",
+                        config.channels(),
+                        config.min_sample_rate().0,
+                        config.max_sample_rate().0,
+                        config.sample_format()
+                    );
+                }
+            }
+        }
+    }
+
+    /*
     pub fn start_audio_capture(&mut self) {
         let input_stream = input_device.build_input_stream(
             &input_config,

@@ -9,7 +9,8 @@ fn main() {
 
     match audiodriver::AudioDriver::new() {
         Ok(driver) => {
-            //driver.get_output_devices();  // Works because get_output_devices borrows self
+            driver.get_input_devices();
+            driver.get_output_devices();
         }
         Err(e) => {
             eprintln!("Error initializing AudioDriver: {}", e);
