@@ -9,17 +9,20 @@ use ringbuf::{
     HeapRb,
 };
 
+mod audiodriver;
+
 #[derive(Default)]
-struct AudioDriver {
+struct DiscordDriver {
     is_connected: bool,
     can_send_audio: bool,
     server_ip: String,
     socket: Option<tokio::net::UdpSocket>,
     user_name: String,
+    audio_driver: audiodriver::AudioDriver,
 }
 
 #[tauri::command]
-fn start_audio_loop(state: tauri::State<Arc<Mutex<AudioDriver>>>) {
+fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
     println!("Running Audio Loop Checks");
 
     let driver_state = Arc::clone(&state);
@@ -161,7 +164,7 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<AudioDriver>>>) {
 }
 
 #[tauri::command]
-fn stop_audio_loop(state: tauri::State<Arc<Mutex<AudioDriver>>>) {
+fn stop_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
     let driver_state = Arc::clone(&state);
     tauri::async_runtime::spawn(async move {
         let mut driver = driver_state.lock().await;
@@ -172,7 +175,7 @@ fn stop_audio_loop(state: tauri::State<Arc<Mutex<AudioDriver>>>) {
 }
 
 #[tauri::command]
-fn set_server_ip(state: tauri::State<Arc<Mutex<AudioDriver>>>, server_ip: String) {
+fn set_server_ip(state: tauri::State<Arc<Mutex<DiscordDriver>>>, server_ip: String) {
     let driver_state = Arc::clone(&state);
     tauri::async_runtime::spawn(async move {
         let mut driver = driver_state.lock().await;
@@ -184,107 +187,29 @@ fn set_server_ip(state: tauri::State<Arc<Mutex<AudioDriver>>>, server_ip: String
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let driver = Arc::new(Mutex::new(AudioDriver {
-        is_connected: false,
-        can_send_audio: false, // Set to true for testing
-        server_ip: "127.0.0.1:3000".to_string(),
-        socket: None,
-        user_name: "Username Not Set".to_string(),
-    }));
+    match audiodriver::AudioDriver::new() {
+        Ok(audiodriver) => {
+            //audiodriver.get_input_devices();
+            //audiodriver.get_output_devices();
 
-    tauri::Builder::default()
-        .manage(driver)
-        .invoke_handler(tauri::generate_handler![stop_audio_loop,start_audio_loop,set_server_ip])
-        //.invoke_handler(tauri::generate_handler![stop_audio_loop])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
-}
-
-pub async fn execute_audio_debug() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize the default audio host
-    let host = cpal::default_host();
-
-    // Get default input and output devices
-    let input_device = host.default_input_device().expect("Failed to find input device");
-    let output_device = host.default_output_device().expect("Failed to find output device");
-
-    // Get input and output configurations
-    let input_config: StreamConfig = input_device.default_input_config()?.into();
-    let output_config: StreamConfig = output_device.default_output_config()?.into();
-
-    //if(input_config.sample_rate > output_config.sample_rate) { input_config.sample_rate.0 = output_config.sample_rate }
-    //else if(input_config.sample_rate < output_config.sample_rate) { output_config.sample_rate.0 = input_config.sample_rate }
-
-    println!("Using input device: \"{}\"", input_device.name()?);
-    println!("Using output device: \"{}\"", output_device.name()?);
-
-    println!(
-        "Using input config: sample rate: {}, channels: {}",
-        input_config.sample_rate.0,
-        input_config.channels
-    );
-    
-    println!(
-        "Using output config: sample rate: {}, channels: {}",
-        output_config.sample_rate.0,
-        output_config.channels
-    );
-
-    // Calculate buffer size
-    let sample_rate = input_config.sample_rate.0 as usize;
-    let channels = input_config.channels as usize;
-    let buffer_capacity = sample_rate; // Buffer for 1 second of samples {force only 48khz}
-
-    //2 Channel 48khz audio.
-    let buf = HeapRb::<f32>::new(buffer_capacity * 2);
-    let (mut prod, mut cons) = buf.split();
-
-    let input_stream = input_device.build_input_stream(
-        &input_config,
-        move |data: &[f32], _: &InputCallbackInfo| {
-            //turn from stereo to mono by skipping every other sample
-            // Mutable buffer for mono_samples
-            let mut mono_samples = vec![0.0; input_config.channels as usize];
-            let mut init_loop = input_config.channels != 0;
-
-            for (i, &sample) in data.iter().enumerate() {
-                prod.try_push(sample).unwrap();
-            }
-        },
-        |err| eprintln!("Error in input stream: {}", err),
-        None,
-    )?;
-
-    // Output stream
-    let output_stream = output_device.build_output_stream(
-        &output_config,
-        move |data: &mut [f32], _: &OutputCallbackInfo| {
-            let mut previous_sample = 0.0;
-
-            // Ensure the output buffer is filled for both left and right channels
-            for (i, sample) in data.iter_mut().enumerate() {
-                if i % output_config.channels as usize == 0 {
-                    // Left channel: fetch a new sample from the consumer
-                    previous_sample = cons.try_pop().unwrap_or(0.0);
-                    *sample = previous_sample;
-                } else {
-                    // Right channel: reuse the same sample as the left channel
-                    *sample = previous_sample;
-                }
-            }
-        },
-        |err| eprintln!("Error in output stream: {}", err),
-        None,
-    )?;
-
-    // Start the streams
-    input_stream.play()?;
-    output_stream.play()?;
-
-    println!("Audio loopback started.");
-    println!("Press Enter to stop...");
-    let mut input = String::new();
-    std::io::stdin().read_line(&mut input)?;
-
-    Ok(())
+            let driver = Arc::new(Mutex::new(DiscordDriver {
+                is_connected: false,
+                can_send_audio: false, // Set to true for testing
+                server_ip: "127.0.0.1:3000".to_string(),
+                socket: None,
+                user_name: "Username Not Set".to_string(),
+                audio_driver: audiodriver,
+            }));
+            
+            tauri::Builder::default()
+                .manage(driver)
+                .invoke_handler(tauri::generate_handler![stop_audio_loop,start_audio_loop,set_server_ip])
+                //.invoke_handler(tauri::generate_handler![stop_audio_loop])
+                .run(tauri::generate_context!())
+                .expect("error while running tauri application");
+        }
+        Err(e) => {
+            eprintln!("Error initializing DiscordDriver: {}", e);
+        }
+    }
 }

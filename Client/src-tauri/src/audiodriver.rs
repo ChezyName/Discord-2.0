@@ -111,8 +111,72 @@ pub struct AudioDriver {
     cons: Caching<Arc<SharedRb<Heap<f32>>>, false, true>,
 
     host: Host,
-    input_device: Device,
-    output_device: Device,
+    input_device: Option<Device>,
+    output_device: Option<Device>,
+}
+
+impl Default for AudioDriver {
+    fn default() -> Self {
+        let host = cpal::default_host();
+
+        // Attempt to retrieve input and output devices
+        let input_device = host.default_input_device();
+        let output_device = host.default_output_device();
+
+        // Logging device information or fallback messages
+        if let Some(ref device) = input_device {
+            println!(
+                "Using input device: \"{}\"",
+                device.name().unwrap_or_else(|_| "Unknown device".to_string())
+            );
+        } else {
+            println!("No default input device found.");
+        }
+
+        if let Some(ref device) = output_device {
+            println!(
+                "Using output device: \"{}\"",
+                device.name().unwrap_or_else(|_| "Unknown device".to_string())
+            );
+        } else {
+            println!("No default output device found.");
+        }
+
+        // Create default configurations if no devices are found
+        let default_sample_rate = 48000;
+        let default_channels = 2;
+
+        let input_sample_rate = input_device
+            .as_ref()
+            .and_then(|device| device.default_input_config().ok())
+            .map(|config| config.sample_rate().0) // Accessing the sample rate via the public method
+            .unwrap_or(default_sample_rate);
+
+        let output_sample_rate = output_device
+            .as_ref()
+            .and_then(|device| device.default_output_config().ok())
+            .map(|config| config.sample_rate().0) // Accessing the sample rate via the public method
+            .unwrap_or(default_sample_rate);
+
+        println!(
+            "Input sample rate: {}, Output sample rate: {}",
+            input_sample_rate, output_sample_rate
+        );
+
+        // Buffer configuration based on the input sample rate
+        let buffer_capacity = input_sample_rate as usize; // 1 second of audio
+        let ring = HeapRb::<f32>::new(buffer_capacity * 2);
+        let (producer, consumer) = ring.split();
+
+        // Return the constructed AudioDriver
+        Self {
+            prod: producer,
+            cons: consumer,
+            host,
+            input_device,
+            output_device,
+        }
+    }
 }
 
 impl AudioDriver {
@@ -149,8 +213,8 @@ impl AudioDriver {
             cons: consumer,
 
             host: host,
-            input_device: input_device,
-            output_device: output_device,
+            input_device: Some(input_device),
+            output_device: Some(output_device),
         })
     }
 
