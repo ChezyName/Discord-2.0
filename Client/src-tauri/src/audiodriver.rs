@@ -1,8 +1,9 @@
 use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
     InputCallbackInfo, OutputCallbackInfo, StreamConfig,
-    Host, Device
+    Host, Device, BufferSize
 };
+use cpal::{SampleFormat, SupportedBufferSize};
 use ringbuf::{
     traits::*,
     wrap::caching::Caching,
@@ -37,7 +38,7 @@ pub fn run_audio_debugger() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // Create a buffer for raw audio
-    let buffer_capacity = input_config.sample_rate.0 as usize; // Buffer for 1 second of audio
+    let buffer_capacity = input_config.sample_rate.0 as usize; // Buffer for 1 second of audio over two channels
     let ring = HeapRb::<f32>::new(buffer_capacity * 2);
     let (mut producer, mut consumer) = ring.split();
 
@@ -107,8 +108,11 @@ pub fn run_audio_debugger() -> Result<(), Box<dyn std::error::Error>> {
 
 //Use this to connect with both the input and output
 pub struct AudioDriver {
-    prod: Caching<Arc<SharedRb<Heap<f32>>>, true, false>,
-    cons: Caching<Arc<SharedRb<Heap<f32>>>, false, true>,
+    prod: dyn Producer,
+    cons: dyn Consumer,
+
+    prod: ringbuf::Producer<f32>,  // Producer of the ring buffer
+    cons: ringbuf::Consumer<f32>,  // Consumer of the ring buffer
 
     host: Host,
     input_device: Option<Device>,
@@ -239,7 +243,7 @@ impl AudioDriver {
         }
     }
 
-    pub fn get_input_devices(&self) {
+    pub fn get_input_devices(&mut self) {
         // Iterate through available devices from the host
         for device in self.host.devices().unwrap() {
             // Check if the device supports output
@@ -260,34 +264,87 @@ impl AudioDriver {
         }
     }
 
-    /*
-    pub fn start_audio_capture(&mut self) {
+    pub fn start_audio_capture(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        // Ensure input_device is available
+        let input_device = self.input_device.as_ref().ok_or("Input device is not available")?;
+        
+        let input_config = input_device
+            .default_input_config() // Call the method on the input_device
+            .map_err(|_| "Failed to get input config")?; // Handle failure to get input config
+        
+        let input_sample_rate = input_config.sample_rate().0 as u32;
+        let output_sample_rate = 44800; // Force Use 44.8kHz
+
+        let prod = &self.prod;
+
+        let stream_config = cpal::StreamConfig {
+            channels: input_config.channels(),
+            sample_rate: input_config.sample_rate(),
+            buffer_size: cpal::BufferSize::Default,
+        };
+
+        // Build the input stream using the input_config
         let input_stream = input_device.build_input_stream(
-            &input_config,
+            &stream_config,
             move |data: &[f32], _: &InputCallbackInfo| {
-                // Push audio samples to the producer
-                for &sample in data {
-                    if !producer.is_full() {
-                        //turn mono to 2 channel
-                        if(input_config.channels == 1) { producer.try_push(sample).unwrap(); }
-                        producer.try_push(sample).unwrap();
+                let mut buffer = Vec::new();
+
+                // Check if the input is mono or stereo
+                let num_channels = input_config.channels() as usize; // Get the number of input channels
+
+                // Handle mono to stereo conversion if necessary
+                if num_channels == 1 {
+                    // Mono input: duplicate the samples to create a stereo output (2 channels)
+                    for sample in data {
+                        // Duplicate the sample for both channels
+                        buffer.push(*sample); // Left channel
+                        buffer.push(*sample); // Right channel
                     }
+                } else if num_channels == 2 {
+                    // Stereo input: just copy the data as is
+                    buffer.extend_from_slice(data);
+                }
+
+                buffer.extend_from_slice(data);
+
+                // Resample if necessary
+                if input_sample_rate != output_sample_rate {
+                    if !buffer.is_empty() {
+                        buffer = convert(
+                            input_sample_rate,
+                            output_sample_rate,
+                            2, // Dual-channel audio (stereo)
+                            ConverterType::SincBestQuality,
+                            &buffer,
+                        )
+                        .expect("Resampling failed");
+                    }
+                }
+
+                // Fill the ring buffer
+                for sample in buffer.iter() {
+                    prod.try_push(*sample).unwrap_or_else(|e| {
+                        eprintln!("Failed to push sample to producer: {:?}", e);
+                    });
                 }
             },
             |err| eprintln!("Error in input stream: {}", err),
             None,
         )?;
+
+        // Start the input stream
         input_stream.play()?;
+        Ok(())
     }
 
     //Returns the last 20ms of audio or sample_rate * 0.2;
     //If sample rate is 44800 then return 896 samples.
     //Additionally compresses using Opus.
     pub fn get_audio(&mut self) {
-
+        
     }
 
-    //changes the input device
+    //changes the input device and changes the input stream
     pub fn swap_audio_input(&mut self, input_device: &str) {
 
     }
@@ -296,5 +353,4 @@ impl AudioDriver {
     pub fn swap_audio_ouput(&mut self, input_device: &str) {
 
     }
-    */
 }
