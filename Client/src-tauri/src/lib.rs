@@ -18,7 +18,6 @@ struct DiscordDriver {
     server_ip: String,
     socket: Option<tokio::net::UdpSocket>,
     user_name: String,
-    audio_driver: audiodriver::AudioDriver,
 }
 
 #[tauri::command]
@@ -67,11 +66,14 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
             return; // Exit the loop if the socket is not initialized
         }
 
-        drop(driver);
-
         println!("Prepairing Audio Loops");
         let loop_driver_1 = Arc::clone(&driver_state);
         let loop_driver_2 = Arc::clone(&driver_state);
+
+        let mut audio_driver = audiodriver::AudioDriver::default();
+        audio_driver.start_audio_capture(driver.socket);
+
+        drop(driver);
         
         //Audio Recieve Loop
         tauri::async_runtime::spawn(async move {
@@ -108,7 +110,8 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
             }
         });
 
-        //Audio Send Loop
+        //Audio Send Loop - MERGED TO AUDIO LOOP ABOVE
+        /*
         tauri::async_runtime::spawn(async move {
             loop {
                 {
@@ -160,6 +163,7 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
                 }
             }
         });
+        */
     });
 }
 
@@ -187,29 +191,18 @@ fn set_server_ip(state: tauri::State<Arc<Mutex<DiscordDriver>>>, server_ip: Stri
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    match audiodriver::AudioDriver::new() {
-        Ok(audiodriver) => {
-            //audiodriver.get_input_devices();
-            //audiodriver.get_output_devices();
-
-            let driver = Arc::new(Mutex::new(DiscordDriver {
-                is_connected: false,
-                can_send_audio: false, // Set to true for testing
-                server_ip: "127.0.0.1:3000".to_string(),
-                socket: None,
-                user_name: "Username Not Set".to_string(),
-                audio_driver: audiodriver,
-            }));
-            
-            tauri::Builder::default()
-                .manage(driver)
-                .invoke_handler(tauri::generate_handler![stop_audio_loop,start_audio_loop,set_server_ip])
-                //.invoke_handler(tauri::generate_handler![stop_audio_loop])
-                .run(tauri::generate_context!())
-                .expect("error while running tauri application");
-        }
-        Err(e) => {
-            eprintln!("Error initializing DiscordDriver: {}", e);
-        }
-    }
+    let driver = Arc::new(Mutex::new(DiscordDriver {
+        is_connected: false,
+        can_send_audio: false, // Set to true for testing
+        server_ip: "127.0.0.1:3000".to_string(),
+        socket: None,
+        user_name: "Username Not Set".to_string(),
+    }));
+    
+    tauri::Builder::default()
+        .manage(driver)
+        .invoke_handler(tauri::generate_handler![stop_audio_loop,start_audio_loop,set_server_ip])
+        //.invoke_handler(tauri::generate_handler![stop_audio_loop])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
 }

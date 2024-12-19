@@ -1,3 +1,15 @@
+/**
+ * Flawwed Audio Driver That Holds Audio Functions For Getting and Recieving Audio,
+ * Audio is created and destroyed frequently and not held in a global state
+ */
+
+#![no_std]
+extern crate alloc;
+
+pub fn print_type_of<T>(_: &T) {
+    println!("{}", std::any::type_name::<T>());
+}
+
 use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
     InputCallbackInfo, OutputCallbackInfo, StreamConfig,
@@ -12,7 +24,7 @@ use ringbuf::{
     SharedRb
 };
 use samplerate::{convert, ConverterType};
-use std::sync::Arc;
+use alloc::sync::Arc;
 
 pub fn run_audio_debugger() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize the default audio host
@@ -108,12 +120,6 @@ pub fn run_audio_debugger() -> Result<(), Box<dyn std::error::Error>> {
 
 //Use this to connect with both the input and output
 pub struct AudioDriver {
-    prod: dyn Producer,
-    cons: dyn Consumer,
-
-    prod: ringbuf::Producer<f32>,  // Producer of the ring buffer
-    cons: ringbuf::Consumer<f32>,  // Consumer of the ring buffer
-
     host: Host,
     input_device: Option<Device>,
     output_device: Option<Device>,
@@ -174,8 +180,6 @@ impl Default for AudioDriver {
 
         // Return the constructed AudioDriver
         Self {
-            prod: producer,
-            cons: consumer,
             host,
             input_device,
             output_device,
@@ -207,15 +211,7 @@ impl AudioDriver {
             output_config.sample_rate.0, output_config.channels
         );
 
-        // Create a buffer for raw audio
-        let buffer_capacity = input_config.sample_rate.0 as usize; // Buffer for 1 second of audio
-        let ring = HeapRb::<f32>::new(buffer_capacity * 2);
-        let (mut producer, mut consumer) = ring.split();
-
         Ok(Self {
-            prod: producer,
-            cons: consumer,
-
             host: host,
             input_device: Some(input_device),
             output_device: Some(output_device),
@@ -264,7 +260,7 @@ impl AudioDriver {
         }
     }
 
-    pub fn start_audio_capture(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn start_audio_capture(&mut self, socket: Option<tokio::net::UdpSocket>) -> Result<(), Box<dyn std::error::Error>> {
         // Ensure input_device is available
         let input_device = self.input_device.as_ref().ok_or("Input device is not available")?;
         
@@ -275,7 +271,9 @@ impl AudioDriver {
         let input_sample_rate = input_config.sample_rate().0 as u32;
         let output_sample_rate = 44800; // Force Use 44.8kHz
 
-        let prod = &self.prod;
+        //Two Channel Audio Heap
+        let ring = HeapRb::<f32>::new(input_sample_rate as usize * 2 as usize);
+        let (mut producer, mut consumer) = ring.split();
 
         let stream_config = cpal::StreamConfig {
             channels: input_config.channels(),
@@ -323,14 +321,20 @@ impl AudioDriver {
 
                 // Fill the ring buffer
                 for sample in buffer.iter() {
-                    prod.try_push(*sample).unwrap_or_else(|e| {
+                    producer.try_push(*sample).unwrap_or_else(|e| {
                         eprintln!("Failed to push sample to producer: {:?}", e);
+                        consumer.try_pop();
                     });
                 }
+
+                //Send Audio Socket Every 20ms
+                //Encode with Opus @ 44.8khz dual channel
             },
             |err| eprintln!("Error in input stream: {}", err),
             None,
         )?;
+
+        print_type_of(&input_stream);
 
         // Start the input stream
         input_stream.play()?;
