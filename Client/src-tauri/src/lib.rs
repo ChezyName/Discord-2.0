@@ -67,21 +67,7 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
             let mut audio_driver = audiodriver::AudioDriver::default();
             //let input_stream = audio_driver.start_audio_capture(socket.clone());
 
-            let mut input:Option<Stream> = None;
-            let mut output:Option<Stream> = None;
-
-            let result = audio_driver.audio_debugger();
-
-            match result {
-                Ok((input_stream, output_stream)) => {
-                    input = Some(input_stream);
-                    output = Some(output_stream);
-                }
-                Err(e) => {
-                    // Handle the error if the function returns an error
-                    eprintln!("[LIB AUDIO DRIVER] Running Audio Debugger Error: {}", e);
-                }
-            }
+            audio_driver.audio_debugger();
 
             drop(driver);
             
@@ -97,6 +83,9 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
                         // If can_send_audio is false, break the loop
                         if !driver.can_send_audio {
                             driver.is_connected = false;
+
+                            audio_driver.stop_input_stream();
+                            audio_driver.stop_output_stream();
                             drop(audio_driver);
                             break;
                         }
@@ -120,61 +109,6 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
                     }
                 }
             });
-
-            //Audio Send Loop - MERGED TO AUDIO LOOP ABOVE
-            /*
-            tauri::async_runtime::spawn(async move {
-                loop {
-                    {
-                        //println!("Sending Audio Packet");
-                        let mut driver = loop_driver_2.lock().await;
-        
-                        //================================================================
-                        // Audio Sending
-                        // If can_send_audio is false, break the loop
-                        if !driver.can_send_audio {
-                            println!("Stopping audio loop, can_send_audio is false");
-                            driver.is_connected = false;
-        
-                            //Send Goodbye Message
-                            let server_ip = driver.server_ip.clone();
-                            let data = "DISCONNECT".as_bytes();
-
-                            // Send audio data & recieve audio data
-                            if let Some(socket) = driver.socket.as_ref() {
-                                if let Err(e) = socket.send_to(data, &server_ip).await {
-                                    eprintln!("Failed to send data: {}", e);
-                                    break; // Exit the loop if sending fails
-                                }
-                            } else {
-                                eprintln!("Socket is not initialized. Cannot send data.");
-                                break; // Exit the loop if the socket is not initialized
-                            }
-                            
-                            drop(driver);
-                            break;
-                        }
-        
-                        // Clone server_ip to avoid holding the lock during async calls
-                        let server_ip = driver.server_ip.clone();
-                        let data = "Audio Packet".as_bytes();
-        
-                        // Send audio data & recieve audio data
-                        if let Some(socket) = driver.socket.as_ref() {
-                            if let Err(e) = socket.send_to(data, &server_ip).await {
-                                eprintln!("Failed to send data: {}", e);
-                                break; // Exit the loop if sending fails
-                            }
-                        } else {
-                            eprintln!("Socket is not initialized. Cannot send data.");
-                            break; // Exit the loop if the socket is not initialized
-                        }
-        
-                        drop(driver);
-                    }
-                }
-            });
-            */
         } else {
             eprintln!("Socket is not initialized. Cannot send data.");
             return; // Exit the loop if the socket is not initialized

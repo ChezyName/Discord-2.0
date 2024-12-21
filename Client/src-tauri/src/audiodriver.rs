@@ -23,6 +23,7 @@ use samplerate::{convert, ConverterType};
 use std::string::String;
 use tokio::sync::Mutex;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 pub fn run_audio_debugger() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize the default audio host
@@ -116,10 +117,15 @@ pub fn run_audio_debugger() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+//================================================================
+//================================================================
+
 //Use this to connect with both the input and output
 pub struct AudioDriver {
     input_device: String,
     output_device: String,
+    input_stream: Arc<AtomicBool>,
+    output_stream: Arc<AtomicBool>,
 }
 
 impl Default for AudioDriver {
@@ -184,6 +190,8 @@ impl Default for AudioDriver {
         Self {
             input_device: String::from(input_device_name),
             output_device: String::from(output_device_name),
+            input_stream: Arc::new(AtomicBool::new(false)),
+            output_stream: Arc::new(AtomicBool::new(false)),
         }
     }
 }
@@ -215,6 +223,8 @@ impl AudioDriver {
         Ok(Self {
             input_device: String::from(input_device.name().unwrap_or_else(|_| "Unknown device".to_string())),
             output_device: String::from(output_device.name().unwrap_or_else(|_| "Unknown device".to_string())),
+            input_stream: Arc::new(AtomicBool::new(false)),
+            output_stream: Arc::new(AtomicBool::new(false)),
         })
     }
 
@@ -415,96 +425,157 @@ impl AudioDriver {
 
     }
 
-    pub fn audio_debugger(&mut self) -> Result<(Stream, Stream), Box<dyn std::error::Error>> {
-        println!("[AUDIO DRIVER] RUNNING AUDIO DEBUGGER.... \n\n");
-        // Initialize the default audio host
-        let host = cpal::default_host();
+    pub fn audio_debugger(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        // Clone atomic flags for thread-safe sharing
+        let input_stream_active = self.input_stream.clone();
+        let output_stream_active = self.output_stream.clone();
     
-        // Get default input and output devices
-        let input_device = host.default_input_device().expect("Failed to find input device");
-        let output_device = host.default_output_device().expect("Failed to find output device");
+        tauri::async_runtime::spawn(async move {
+            println!("[AUDIO DRIVER : DEBUG] Starting audio debugger...");
     
-        // Get input and output configurations
-        let input_config: StreamConfig = input_device.default_input_config()?.into();
-        let output_config: StreamConfig = output_device.default_output_config()?.into();
+            // Initialize the default audio host
+            let host = cpal::default_host();
     
-        println!("[AUDIO DRIVER] Using input device: \"{}\"", input_device.name()?);
-        println!("[AUDIO DRIVER] Using output device: \"{}\"", output_device.name()?);
-        println!(
-            "[AUDIO DRIVER] Using input config: sample rate: {}, channels: {}",
-            input_config.sample_rate.0, input_config.channels
-        );
-        println!(
-            "[AUDIO DRIVER] Using output config: sample rate: {}, channels: {}",
-            output_config.sample_rate.0, output_config.channels
-        );
-    
-        // Create a buffer for raw audio
-        let buffer_capacity = input_config.sample_rate.0 as usize; // Buffer for 1 second of audio over two channels
-        let ring = HeapRb::<f32>::new(buffer_capacity * 2);
-        let (mut producer, mut consumer) = ring.split();
-    
-        // Input stream
-        let input_stream = input_device.build_input_stream(
-            &input_config,
-            move |data: &[f32], _: &InputCallbackInfo| {
-                // Push audio samples to the producer
-                for &sample in data {
-                    println!("[AUDIO DRIVER] Pushing Samples from Input.");
-                    if !producer.is_full() {
-                        //turn mono to 2 channel
-                        if(input_config.channels == 1) { producer.try_push(sample).unwrap(); }
-                        producer.try_push(sample).unwrap();
-                    }
+            // Get default input and output devices
+            let input_device = match host.default_input_device() {
+                Some(device) => device,
+                None => {
+                    eprintln!("[AUDIO DRIVER : DEBUG] No input device found.");
+                    return;
                 }
-            },
-            |err| eprintln!("[AUDIO DRIVER] Error in input stream: {}", err),
-            None,
-        )?;
+            };
     
-        // Output stream
-        let output_stream = output_device.build_output_stream(
-            &output_config,
-            move |output_data: &mut [f32], _: &OutputCallbackInfo| {
-                let input_sample_rate = input_config.sample_rate.0 as u32;
-                let output_sample_rate = output_config.sample_rate.0 as u32;
-                let mut buffer = Vec::new();
-    
-                // Read samples from the consumer
-                while let Some(sample) = consumer.try_pop() {
-                    buffer.push(sample);
+            let output_device = match host.default_output_device() {
+                Some(device) => device,
+                None => {
+                    eprintln!("[AUDIO DRIVER : DEBUG] No output device found.");
+                    return;
                 }
+            };
     
-                // Resample if necessary
-                if input_sample_rate != output_sample_rate {
-                    if !buffer.is_empty() {
-                        buffer = convert(
-                            input_sample_rate,
-                            output_sample_rate,
-                            1, // Assuming mono audio
-                            ConverterType::SincBestQuality,
-                            &buffer,
-                        )
-                        .expect("Resampling failed");
-                    }
-                }
+            // Get input and output configurations
+            let input_config: StreamConfig = input_device.default_input_config().unwrap().into();
+            let output_config: StreamConfig = output_device.default_output_config().unwrap().into();
     
-                // Fill the output buffer
-                for (i, sample) in output_data.iter_mut().enumerate() {
-                    println!("[AUDIO DRIVER] Getting Sample for Output.");
-                    *sample = buffer.get(i).cloned().unwrap_or(0.0);
-                }
-            },
-            |err| eprintln!("[AUDIO DRIVER] Error in output stream: {}", err),
-            None,
-        )?;
+            println!(
+                "[AUDIO DRIVER : DEBUG] Using input device: {} with config: {:?}",
+                match input_device.name() {
+                    Ok(name) => name,
+                    Err(_) => "Unknown Input Device".to_string(),
+                },
+                input_config
+            );
+            
+            println!(
+                "[AUDIO DRIVER : DEBUG] Using output device: {} with config: {:?}\n",
+                match output_device.name() {
+                    Ok(name) => name,
+                    Err(_) => "Unknown Output Device".to_string(),
+                },
+                output_config
+            );
     
-        // Start streams
-        input_stream.play()?;
-        output_stream.play()?;
+            // Create a ring buffer for audio samples
+            let buffer_capacity = input_config.sample_rate.0 as usize * input_config.channels as usize;
+            let ring = HeapRb::<f32>::new(buffer_capacity);
+            let (mut producer, mut consumer) = ring.split();
     
-        println!("[AUDIO DRIVER] Audio loopback started.");
+            // Input stream
+            let input_stream = input_device
+                .build_input_stream(
+                    &input_config,
+                    move |data: &[f32], _: &InputCallbackInfo| {
+                        // Push audio samples to the producer
+                        for &sample in data {
+                            if !producer.is_full() {
+                                //turn mono to 2 channel
+                                if(input_config.channels == 1) { producer.try_push(sample).unwrap(); }
+                                producer.try_push(sample).unwrap();
+                            }
+                        }
+                    },
+                    |err| eprintln!("[AUDIO DRIVER : DEBUG] Input stream error: {}", err),
+                    None,
+                )
+                .expect("[AUDIO DRIVER : DEBUG] Failed to create input stream.");
     
-        Ok((input_stream, output_stream))
+            // Output stream
+            let output_stream = output_device
+                .build_output_stream(
+                    &output_config,
+                    move |output_data: &mut [f32], _: &OutputCallbackInfo| {
+                        let input_sample_rate = input_config.sample_rate.0 as u32;
+                        let output_sample_rate = output_config.sample_rate.0 as u32;
+                        let mut buffer = Vec::new();
+            
+                        // Read samples from the consumer
+                        while let Some(sample) = consumer.try_pop() {
+                            buffer.push(sample);
+                        }
+            
+                        // Resample if necessary
+                        if input_sample_rate != output_sample_rate {
+                            if !buffer.is_empty() {
+                                buffer = convert(
+                                    input_sample_rate,
+                                    output_sample_rate,
+                                    1, // Assuming mono audio
+                                    ConverterType::SincBestQuality,
+                                    &buffer,
+                                )
+                                .expect("Resampling failed");
+                            }
+                        }
+            
+                        // Fill the output buffer
+                        for (i, sample) in output_data.iter_mut().enumerate() {
+                            *sample = buffer.get(i).cloned().unwrap_or(0.0);
+                        }
+                    },
+                    |err| eprintln!("[AUDIO DRIVER : DEBUG] Output stream error: {}", err),
+                    None,
+                )
+                .expect("[AUDIO DRIVER : DEBUG] Failed to create output stream.");
+    
+            // Play streams
+            if let Err(err) = input_stream.play() {
+                eprintln!("[AUDIO DRIVER : DEBUG] Failed to start input stream: {}", err);
+                return;
+            }
+            else { input_stream_active.store(true, Ordering::SeqCst); }
+    
+            if let Err(err) = output_stream.play() {
+                eprintln!("[AUDIO DRIVER : DEBUG] Failed to start output stream: {}", err);
+                return;
+            }
+            else { output_stream_active.store(true, Ordering::SeqCst); }
+    
+            println!("[AUDIO DRIVER : DEBUG] Streams started successfully.");
+    
+            // Monitor and stop streams based on atomic flags
+            /*
+            while input_stream_active.load(Ordering::SeqCst)
+                || output_stream_active.load(Ordering::SeqCst)
+            {
+                // Allow other threads to work
+                std::thread::sleep(std::time::Duration::from_millis(5));
+            }
+            */
+    
+            println!("\n[AUDIO DRIVER : DEBUG] Stopping streams...");
+            drop(input_stream);
+            drop(output_stream);
+            println!("[AUDIO DRIVER : DEBUG] Streams stopped.");
+        });
+    
+        Ok(())
+    }       
+
+    pub fn stop_input_stream(&mut self) {
+        self.input_stream.store(false, Ordering::SeqCst);
+    }
+
+    pub fn stop_output_stream(&mut self) {
+        self.output_stream.store(false, Ordering::SeqCst);
     }
 }
