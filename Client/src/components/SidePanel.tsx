@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { getServerData, getServerList } from './FunctionLibrary';
 
+const SERVER_SEARCH_INTERVAL = 500;
+
 export type ServerInformation = {
   serverIP: string;
   serverName: string;
@@ -12,7 +14,6 @@ const SidePanel = ({setServerIP, setIsConnected ,setInitServerData}: any) => {
 
   useEffect(() => {
     //Get Init Server Data
-    let serverList = getServerList();
     let doServerGetData = async (list: string[]) => {
       let myServerList: ServerInformation[] = [];
       for(let i = 0; i < list.length; i++){
@@ -24,7 +25,9 @@ const SidePanel = ({setServerIP, setIsConnected ,setInitServerData}: any) => {
       setMyServers(myServerList);
     }
 
-    doServerGetData(serverList);
+    let interval = setInterval(() => {doServerGetData(getServerList());}, SERVER_SEARCH_INTERVAL);
+
+    return () => clearInterval(interval);
   }, []);
 
   return (

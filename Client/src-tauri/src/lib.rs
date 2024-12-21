@@ -1,9 +1,9 @@
 use tauri::{AppHandle, Builder};
 use tokio::sync::Mutex;
+use std::sync::Arc;
 use tokio::time::{sleep, Duration};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{InputCallbackInfo, OutputCallbackInfo, StreamConfig};
-use std::sync::Arc;
+use cpal::{InputCallbackInfo, OutputCallbackInfo, StreamConfig, Stream};
 use ringbuf::{
     traits::*,
     HeapRb,
@@ -57,78 +57,108 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
         let data = full.as_bytes();
 
         if let Some(socket) = driver.socket.as_ref() {
-            if let Err(e) = socket.send_to(data, &server_ip).await {
-                eprintln!("Failed to send data: {}", e);
-                return; // Exit the loop if sending fails
-            }
-        } else {
-            eprintln!("Socket is not initialized. Cannot send data.");
-            return; // Exit the loop if the socket is not initialized
-        }
+            
+            let socket = Arc::new(Mutex::new(socket));
 
-        println!("Prepairing Audio Loops");
-        let loop_driver_1 = Arc::clone(&driver_state);
-        let loop_driver_2 = Arc::clone(&driver_state);
+            println!("Prepairing Audio Loops");
+            let loop_driver_1 = Arc::clone(&driver_state);
+            let loop_driver_2 = Arc::clone(&driver_state);
 
-        let mut audio_driver = audiodriver::AudioDriver::default();
-        audio_driver.start_audio_capture(driver.socket);
+            let mut audio_driver = audiodriver::AudioDriver::default();
+            //let input_stream = audio_driver.start_audio_capture(socket.clone());
 
-        drop(driver);
-        
-        //Audio Recieve Loop
-        tauri::async_runtime::spawn(async move {
-            loop {
-                {
-                    //println!("Sending Audio Packet");
-                    let mut driver = loop_driver_1.lock().await;
-    
-                    //================================================================
-                    // Audio Sending
-                    // If can_send_audio is false, break the loop
-                    if !driver.can_send_audio {
-                        driver.is_connected = false;
-                        break;
-                    }
-    
-                    // Clone server_ip to avoid holding the lock during async calls
-                    let server_ip = driver.server_ip.clone();
-    
-                    // Send audio data & recieve audio data
-                    if let Some(socket) = driver.socket.as_ref() {
-                        let mut buf = [0; 1024];
-                        if let Ok((len, addr)) = socket.recv_from(&mut buf).await {
-                            println!("{:?} bytes received from {:?}", len, addr);
-                            //Play Audio
-                        }
-                    } else {
-                        eprintln!("Socket is not initialized. Cannot send data.");
-                        break; // Exit the loop if the socket is not initialized
-                    }
-    
-                    drop(driver);
+            let mut input:Option<Stream> = None;
+            let mut output:Option<Stream> = None;
+
+            let result = audio_driver.audio_debugger();
+
+            match result {
+                Ok((input_stream, output_stream)) => {
+                    input = Some(input_stream);
+                    output = Some(output_stream);
+                }
+                Err(e) => {
+                    // Handle the error if the function returns an error
+                    eprintln!("[LIB AUDIO DRIVER] Running Audio Debugger Error: {}", e);
                 }
             }
-        });
 
-        //Audio Send Loop - MERGED TO AUDIO LOOP ABOVE
-        /*
-        tauri::async_runtime::spawn(async move {
-            loop {
-                {
-                    //println!("Sending Audio Packet");
-                    let mut driver = loop_driver_2.lock().await;
-    
-                    //================================================================
-                    // Audio Sending
-                    // If can_send_audio is false, break the loop
-                    if !driver.can_send_audio {
-                        println!("Stopping audio loop, can_send_audio is false");
-                        driver.is_connected = false;
-    
-                        //Send Goodbye Message
+            drop(driver);
+            
+            //Audio Recieve Loop
+            tauri::async_runtime::spawn(async move {
+                loop {
+                    {
+                        //println!("Sending Audio Packet");
+                        let mut driver = loop_driver_1.lock().await;
+        
+                        //================================================================
+                        // Audio Sending
+                        // If can_send_audio is false, break the loop
+                        if !driver.can_send_audio {
+                            driver.is_connected = false;
+                            drop(audio_driver);
+                            break;
+                        }
+        
+                        // Clone server_ip to avoid holding the lock during async calls
                         let server_ip = driver.server_ip.clone();
-                        let data = "DISCONNECT".as_bytes();
+        
+                        // Send audio data & recieve audio data
+                        if let Some(socket) = driver.socket.as_ref() {
+                            let mut buf = [0; 1024];
+                            if let Ok((len, addr)) = socket.recv_from(&mut buf).await {
+                                println!("{:?} bytes received from {:?}", len, addr);
+                                //Play Audio
+                            }
+                        } else {
+                            eprintln!("Socket is not initialized. Cannot send data.");
+                            break; // Exit the loop if the socket is not initialized
+                        }
+        
+                        drop(driver);
+                    }
+                }
+            });
 
+            //Audio Send Loop - MERGED TO AUDIO LOOP ABOVE
+            /*
+            tauri::async_runtime::spawn(async move {
+                loop {
+                    {
+                        //println!("Sending Audio Packet");
+                        let mut driver = loop_driver_2.lock().await;
+        
+                        //================================================================
+                        // Audio Sending
+                        // If can_send_audio is false, break the loop
+                        if !driver.can_send_audio {
+                            println!("Stopping audio loop, can_send_audio is false");
+                            driver.is_connected = false;
+        
+                            //Send Goodbye Message
+                            let server_ip = driver.server_ip.clone();
+                            let data = "DISCONNECT".as_bytes();
+
+                            // Send audio data & recieve audio data
+                            if let Some(socket) = driver.socket.as_ref() {
+                                if let Err(e) = socket.send_to(data, &server_ip).await {
+                                    eprintln!("Failed to send data: {}", e);
+                                    break; // Exit the loop if sending fails
+                                }
+                            } else {
+                                eprintln!("Socket is not initialized. Cannot send data.");
+                                break; // Exit the loop if the socket is not initialized
+                            }
+                            
+                            drop(driver);
+                            break;
+                        }
+        
+                        // Clone server_ip to avoid holding the lock during async calls
+                        let server_ip = driver.server_ip.clone();
+                        let data = "Audio Packet".as_bytes();
+        
                         // Send audio data & recieve audio data
                         if let Some(socket) = driver.socket.as_ref() {
                             if let Err(e) = socket.send_to(data, &server_ip).await {
@@ -139,31 +169,16 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
                             eprintln!("Socket is not initialized. Cannot send data.");
                             break; // Exit the loop if the socket is not initialized
                         }
-                        
+        
                         drop(driver);
-                        break;
                     }
-    
-                    // Clone server_ip to avoid holding the lock during async calls
-                    let server_ip = driver.server_ip.clone();
-                    let data = "Audio Packet".as_bytes();
-    
-                    // Send audio data & recieve audio data
-                    if let Some(socket) = driver.socket.as_ref() {
-                        if let Err(e) = socket.send_to(data, &server_ip).await {
-                            eprintln!("Failed to send data: {}", e);
-                            break; // Exit the loop if sending fails
-                        }
-                    } else {
-                        eprintln!("Socket is not initialized. Cannot send data.");
-                        break; // Exit the loop if the socket is not initialized
-                    }
-    
-                    drop(driver);
                 }
-            }
-        });
-        */
+            });
+            */
+        } else {
+            eprintln!("Socket is not initialized. Cannot send data.");
+            return; // Exit the loop if the socket is not initialized
+        }
     });
 }
 
