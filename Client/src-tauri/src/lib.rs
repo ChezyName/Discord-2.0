@@ -1,6 +1,9 @@
 use tauri::{AppHandle, Builder};
+use std::io::ErrorKind;
+use tokio::sync::oneshot;
 use tokio::sync::Mutex;
 use std::sync::Arc;
+use std::io;
 use tokio::time::{sleep, Duration};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{InputCallbackInfo, OutputCallbackInfo, StreamConfig, Stream};
@@ -16,7 +19,7 @@ struct DiscordDriver {
     is_connected: bool,
     can_send_audio: bool,
     server_ip: String,
-    socket: Option<tokio::net::UdpSocket>,
+    socket: Option<Arc<tokio::net::UdpSocket>>,
     user_name: String,
 }
 
@@ -44,7 +47,7 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
                     return;
                 }
             };
-            driver.socket = Some(new_socket)
+            driver.socket = Some(Arc::new(new_socket))
         }
 
         driver.can_send_audio = true;
@@ -61,7 +64,8 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
             let socket = Arc::new(Mutex::new(socket));
 
             println!("Prepairing Audio Loops");
-            let loop_driver = Arc::clone(&driver_state);
+            let loop_driver1 = Arc::clone(&driver_state);
+            let loop_driver2 = Arc::clone(&driver_state);
 
             let mut audio_driver = audiodriver::AudioDriver::default();
             //let input_stream = audio_driver.start_audio_capture(socket.clone());
@@ -69,57 +73,66 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
             audio_driver.audio_debugger();
 
             drop(driver);
-            
-            //Audio Recieve Loop
+
+            let (sender, reciever) = oneshot::channel();
+
+            //Audio Checker
             tauri::async_runtime::spawn(async move {
                 println!("[LIB] Sending / Receiving Audio Data");
                 loop {
                     {
-                        /*
-                            This Function locks the AudioDriver constantly causing the other function
-                            stop_audio_loop to not set can_send_audio to false;
-                        */
-                        //println!("Sending Audio Packet");
                         let can_send_audio = {
-                            let driver = loop_driver.lock().await;
+                            let driver = loop_driver1.lock().await;
                             driver.can_send_audio
                         };
         
-                        //================================================================
-                        // Audio Sending
-                        // If can_send_audio is false, break the loop
                         if can_send_audio {
-                            let mut driver = loop_driver.lock().await;
+                            let mut driver = loop_driver1.lock().await;
                             driver.is_connected = false;
                             drop(driver);
 
-                            println!("[LIB] Main Thread Stopping Audio Sending...");
+                            sender.send(()).unwrap();
+
+                            println!("[LIB] Disconnecting from Server");
+
+                            println!("[LIB] Dropping Audio Input Stream / Output Stream");
                             audio_driver.stop_input_stream();
                             audio_driver.stop_output_stream();
                             drop(audio_driver);
                             break;
                         }
-        
-                        let mut driver = loop_driver.lock().await;
-                        // Clone server_ip to avoid holding the lock during async calls
-                        let server_ip = driver.server_ip.clone();
-        
-                        // Send audio data & recieve audio data
-                        if let Some(socket) = driver.socket.as_ref() {
-                            let mut buf = [0; 1024];
-                            if let Ok((len, addr)) = socket.recv_from(&mut buf).await {
-                                println!("{:?} bytes received from {:?}", len, addr);
-                                //Play Audio
-                            }
-                        } else {
-                            eprintln!("Socket is not initialized. Cannot send data.");
-                            break; // Exit the loop if the socket is not initialized
-                        }
-        
-                        drop(driver);
                     }
                 }
             });
+            
+            //Audio Recieve Loop
+            println!("[LIB] Sending / Receiving Audio Data");
+            tokio::select! {
+                _ = async {
+                    loop {
+                        if let Some(socket) = {
+                            // Scope the lock to only retrieve the socket
+                            let mut driver = loop_driver2.lock().await;
+                            driver.socket.clone();
+                        } {
+                            let mut buf = [0; 1024];
+                            if let Ok((len, addr)) = socket.recv_from(&mut buf).await {
+                                println!("{:?} bytes received from {:?}", len, addr);
+                                // Play Audio
+                            }
+                        } else {
+                            eprintln!("Socket is not initialized. Cannot receive data.");
+                            break; // Exit the loop if the socket is not initialized
+                        }
+                    }
+        
+                    // Help the rust type inferencer out
+                    Ok::<_, io::Error>(())
+                } => {}
+                _ = reciever => {
+                    println!("[LIB] Audio Loop (RECIEVE) Terminated");
+                }
+            }
         } else {
             eprintln!("Socket is not initialized. Cannot send data.");
             return; // Exit the loop if the socket is not initialized
