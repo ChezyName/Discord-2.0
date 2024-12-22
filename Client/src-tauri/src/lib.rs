@@ -61,8 +61,7 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
             let socket = Arc::new(Mutex::new(socket));
 
             println!("Prepairing Audio Loops");
-            let loop_driver_1 = Arc::clone(&driver_state);
-            let loop_driver_2 = Arc::clone(&driver_state);
+            let loop_driver = Arc::clone(&driver_state);
 
             let mut audio_driver = audiodriver::AudioDriver::default();
             //let input_stream = audio_driver.start_audio_capture(socket.clone());
@@ -73,23 +72,35 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
             
             //Audio Recieve Loop
             tauri::async_runtime::spawn(async move {
+                println!("[LIB] Sending / Receiving Audio Data");
                 loop {
                     {
+                        /*
+                            This Function locks the AudioDriver constantly causing the other function
+                            stop_audio_loop to not set can_send_audio to false;
+                        */
                         //println!("Sending Audio Packet");
-                        let mut driver = loop_driver_1.lock().await;
+                        let can_send_audio = {
+                            let driver = loop_driver.lock().await;
+                            driver.can_send_audio
+                        };
         
                         //================================================================
                         // Audio Sending
                         // If can_send_audio is false, break the loop
-                        if !driver.can_send_audio {
+                        if can_send_audio {
+                            let mut driver = loop_driver.lock().await;
                             driver.is_connected = false;
+                            drop(driver);
 
+                            println!("[LIB] Main Thread Stopping Audio Sending...");
                             audio_driver.stop_input_stream();
                             audio_driver.stop_output_stream();
                             drop(audio_driver);
                             break;
                         }
         
+                        let mut driver = loop_driver.lock().await;
                         // Clone server_ip to avoid holding the lock during async calls
                         let server_ip = driver.server_ip.clone();
         
@@ -118,6 +129,8 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
 
 #[tauri::command]
 fn stop_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
+    println!("Main Thread Stopping Audio Sending...");
+
     let driver_state = Arc::clone(&state);
     tauri::async_runtime::spawn(async move {
         let mut driver = driver_state.lock().await;

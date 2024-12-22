@@ -553,14 +553,12 @@ impl AudioDriver {
             println!("[AUDIO DRIVER : DEBUG] Streams started successfully.");
     
             // Monitor and stop streams based on atomic flags
-            /*
             while input_stream_active.load(Ordering::SeqCst)
                 || output_stream_active.load(Ordering::SeqCst)
             {
                 // Allow other threads to work
-                std::thread::sleep(std::time::Duration::from_millis(5));
+                std::thread::sleep(std::time::Duration::from_millis(100));
             }
-            */
     
             println!("\n[AUDIO DRIVER : DEBUG] Stopping streams...");
             drop(input_stream);
@@ -572,10 +570,12 @@ impl AudioDriver {
     }       
 
     pub fn stop_input_stream(&mut self) {
+        println!("[AUDIO DRIVER] Stopping Audio INPUT Stream");
         self.input_stream.store(false, Ordering::SeqCst);
     }
 
     pub fn stop_output_stream(&mut self) {
+        println!("[AUDIO DRIVER] Stopping Audio OUTPUT Stream");
         self.output_stream.store(false, Ordering::SeqCst);
     }
 }
