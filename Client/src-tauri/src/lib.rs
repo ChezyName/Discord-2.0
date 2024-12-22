@@ -19,137 +19,132 @@ struct DiscordDriver {
     is_connected: bool,
     can_send_audio: bool,
     server_ip: String,
-    socket: Option<Arc<tokio::net::UdpSocket>>,
     user_name: String,
 }
 
 #[tauri::command]
 fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
-    println!("Running Audio Loop Checks");
+    println!("[LIB] Trying Connecting to Server");
 
     let driver_state = Arc::clone(&state);
     //Audio Loop
     tauri::async_runtime::spawn(async move {
-        println!("Init Connecting To Server");
+        println!("[LIB] Init Connecting To Server");
 
         let mut driver = driver_state.lock().await;
         if driver.can_send_audio { 
-            println!("Cannot Send Audio, Another Thread is Already Sending Audio");
+            eprintln!("[LIB] Cannot Send Audio, Another Thread is Already Sending Audio");
             return;
         }
 
         // Create a UDP socket
-        if !driver.socket.is_some() {
-            let new_socket = match tokio::net::UdpSocket::bind("0.0.0.0:0").await {
-                Ok(new_socket) => new_socket,
-                Err(e) => {
-                    eprintln!("Failed to bind UDP socket: {}", e);
-                    return;
-                }
-            };
-            driver.socket = Some(Arc::new(new_socket))
-        }
+        let new_socket = match tokio::net::UdpSocket::bind("0.0.0.0:0").await {
+            Ok(new_socket) => new_socket,
+            Err(e) => {
+                eprintln!("[LIB] Failed to bind UDP socket: {}", e);
+                return;
+            }
+        };
+
+
+        let socket = Arc::new(Mutex::new(new_socket));
 
         driver.can_send_audio = true;
 
-        println!("Sending Init Data to Server");
+        println!("[LIB] Sending User Data to Server");
         //Send Initial Data Like Username
         let server_ip = driver.server_ip.clone();
         let username = driver.user_name.to_owned().clone();
         let full = "username:".to_string() + &username;
         let data = full.as_bytes();
-
-        if let Some(socket) = driver.socket.as_ref() {
-            
-            let socket = Arc::new(Mutex::new(socket));
-
-            println!("Prepairing Audio Loops");
-            let loop_driver1 = Arc::clone(&driver_state);
-            let loop_driver2 = Arc::clone(&driver_state);
-
-            let mut audio_driver = audiodriver::AudioDriver::default();
-            //let input_stream = audio_driver.start_audio_capture(socket.clone());
-
-            audio_driver.audio_debugger();
-
-            drop(driver);
-
-            let (sender, reciever) = oneshot::channel();
-
-            //Audio Checker
-            tauri::async_runtime::spawn(async move {
-                println!("[LIB] Sending / Receiving Audio Data");
-                loop {
-                    {
-                        let can_send_audio = {
-                            let driver = loop_driver1.lock().await;
-                            driver.can_send_audio
-                        };
         
-                        if can_send_audio {
-                            let mut driver = loop_driver1.lock().await;
-                            driver.is_connected = false;
-                            drop(driver);
+        //Sending The User Data
+        let temp_socket = Arc::clone(&socket);
+        let user_data_socket = temp_socket.lock().await;
+        if let Err(e) = user_data_socket.send_to(data, &server_ip).await {
+            eprintln!("[LIB] Failed to send data: {}", e);
+            return; // Exit the loop if sending fails
+        }
+        else { println!("[LIB] Sent User Data to Server") }
+        drop(user_data_socket);
+        drop(temp_socket);
 
-                            sender.send(()).unwrap();
+        println!("[LIB] Prepairing Audio Loops");
+        let loop_driver1 = Arc::clone(&driver_state);
+        let loop_driver2 = Arc::clone(&driver_state);
 
-                            println!("[LIB] Disconnecting from Server");
+        let mut audio_driver = audiodriver::AudioDriver::default();
+        //let input_stream = audio_driver.start_audio_capture(socket.clone());
 
-                            println!("[LIB] Dropping Audio Input Stream / Output Stream");
-                            audio_driver.stop_input_stream();
-                            audio_driver.stop_output_stream();
-                            drop(audio_driver);
-                            break;
-                        }
-                    }
-                }
-            });
-            
-            //Audio Recieve Loop
+        audio_driver.audio_debugger();
+
+        drop(driver);
+
+        let (sender, reciever) = oneshot::channel();
+
+        //Audio Checker
+        tauri::async_runtime::spawn(async move {
             println!("[LIB] Sending / Receiving Audio Data");
-            tokio::select! {
-                _ = async {
-                    loop {
-                        if let Some(socket) = {
-                            // Scope the lock to only retrieve the socket
-                            let mut driver = loop_driver2.lock().await;
-                            driver.socket.clone();
-                        } {
-                            let mut buf = [0; 1024];
-                            if let Ok((len, addr)) = socket.recv_from(&mut buf).await {
-                                println!("{:?} bytes received from {:?}", len, addr);
-                                // Play Audio
-                            }
-                        } else {
-                            eprintln!("Socket is not initialized. Cannot receive data.");
-                            break; // Exit the loop if the socket is not initialized
-                        }
+            loop {
+                {
+    
+                    let mut driver = loop_driver1.lock().await;
+                    if !driver.can_send_audio {
+                        driver.is_connected = false;
+                        drop(driver);
+
+                        sender.send(()).unwrap();
+
+                        println!("[LIB] Disconnecting from Server");
+
+                        println!("[LIB] Dropping Audio Input Stream / Output Stream");
+                        audio_driver.stop_input_stream();
+                        audio_driver.stop_output_stream();
+                        drop(audio_driver);
+                        break;
                     }
-        
-                    // Help the rust type inferencer out
-                    Ok::<_, io::Error>(())
-                } => {}
-                _ = reciever => {
-                    println!("[LIB] Audio Loop (RECIEVE) Terminated");
+
+                    std::thread::sleep(std::time::Duration::from_millis(100));
                 }
             }
-        } else {
-            eprintln!("Socket is not initialized. Cannot send data.");
-            return; // Exit the loop if the socket is not initialized
+        });
+        
+        //Audio Recieve Loop
+        let audiorecsocket = Arc::clone(&socket);
+        println!("[LIB] Sending / Receiving Audio Data");
+        tokio::select! {
+            _ = async {
+                loop {
+                    let socket = audiorecsocket.lock().await;
+                    let mut buf = [0; 1024];
+                    if let Ok((len, addr)) = socket.recv_from(&mut buf).await {
+                        println!("{:?} bytes received from {:?}", len, addr);
+                        // Play Audio
+                    }
+                }
+    
+                // Help the rust type inferencer out
+                Ok::<_, io::Error>(())
+            } => {}
+            _ = reciever => {
+                println!("[LIB] Audio Loop (RECIEVE) Terminated");
+            }
         }
     });
 }
 
 #[tauri::command]
 fn stop_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
-    println!("Main Thread Stopping Audio Sending...");
+    println!("\n[LIB] Trying to Disconnect from Server");
 
     let driver_state = Arc::clone(&state);
     tauri::async_runtime::spawn(async move {
+        println!("[LIB] Side-Thread waiting for State to be cleared.");
         let mut driver = driver_state.lock().await;
         driver.can_send_audio = false;
         drop(driver);
         drop(driver_state);
+        println!("[LIB] Completed Server Disconnection");
     });
 }
 
@@ -170,7 +165,6 @@ pub fn run() {
         is_connected: false,
         can_send_audio: false, // Set to true for testing
         server_ip: "127.0.0.1:3000".to_string(),
-        socket: None,
         user_name: "Username Not Set".to_string(),
     }));
     

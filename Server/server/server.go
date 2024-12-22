@@ -180,9 +180,10 @@ func UserListClearer(timeFrameS int64, server *Server) {
 		//Check Last Seen
 		for i, item := range server.Connections {
 			scaledTime := item.LastSeen + timeFrameS
-			fmt.Println(scaledTime)
+			//fmt.Println(scaledTime)
 			if scaledTime-time.Now().Unix() <= 0 {
 				//remove from connections
+				fmt.Println("Removing: " + server.Connections[i].Name + ".")
 				server.Connections[i] = server.Connections[len(server.Connections)-1]
 				server.Connections = server.Connections[:len(server.Connections)-1]
 			}
@@ -196,7 +197,7 @@ func HostBothServers(server *Server, isDebug bool) {
 
 	go HostDataServer(server)
 	go HostVoiceServer(server)
-	go UserListClearer(2, server)
+	go UserListClearer(5, server)
 
 	//keep servers running
 	select {}
