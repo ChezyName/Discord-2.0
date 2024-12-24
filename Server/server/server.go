@@ -120,7 +120,7 @@ func HostVoiceServer(server *Server) {
 		// Print the received data
 		//fmt.Printf("Received %d bytes from %s: %s\n", n, addr, string(buffer[:n]))
 		data := string(buffer[:n])
-		fmt.Println(data)
+		//fmt.Println(data)
 
 		//Check if User is sending thier username
 		if strings.Contains(data, "username:") {
@@ -149,6 +149,43 @@ func HostVoiceServer(server *Server) {
 				server.Connections[index] = NewVC
 				fmt.Println("Returning User: '" + username + "' Has Connected on " + addr.String())
 			}
+		} else if strings.Contains(data, "hb") {
+			//fmt.Println("Receieved Heartbeat")
+
+			//Heartbeat
+			var index = -1
+			for i, item := range server.Connections {
+				if strings.Compare(item.Address.String(), addr.String()) == 0 {
+					index = i
+					break
+				}
+			}
+
+			if index == -1 {
+				return
+			}
+
+			server.Connections[index].LastSeen = time.Now().Unix()
+		} else if strings.Contains(data, "disconnect") {
+			//User is leaving the server, goodbye
+			//fmt.Println("Receieved Heartbeat")
+
+			//Get Index
+			var index = -1
+			for i, item := range server.Connections {
+				if strings.Compare(item.Address.String(), addr.String()) == 0 {
+					index = i
+					break
+				}
+			}
+
+			if index == -1 {
+				return
+			}
+
+			fmt.Println("User Disconnected: " + server.Connections[index].Name + ".")
+			server.Connections[index] = server.Connections[len(server.Connections)-1]
+			server.Connections = server.Connections[:len(server.Connections)-1]
 		} else {
 			//This is Audio Data
 			for _, item := range server.Connections {

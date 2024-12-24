@@ -1,7 +1,5 @@
 use tauri::{AppHandle, Builder};
-use std::io::ErrorKind;
-use tokio::sync::oneshot;
-use tokio::sync::Mutex;
+use tokio::sync::{watch, Mutex};
 use std::sync::Arc;
 use std::io;
 use tokio::time::{sleep, Duration};
@@ -47,26 +45,25 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
         };
 
 
-        let socket = Arc::new(Mutex::new(new_socket));
+        let socket = Arc::new(new_socket);
 
         driver.can_send_audio = true;
 
         println!("[LIB] Sending User Data to Server");
         //Send Initial Data Like Username
-        let server_ip = driver.server_ip.clone();
+        let server_ip = Arc::new(driver.server_ip.clone());
         let username = driver.user_name.to_owned().clone();
         let full = "username:".to_string() + &username;
         let data = full.as_bytes();
         
         //Sending The User Data
         let temp_socket = Arc::clone(&socket);
-        let user_data_socket = temp_socket.lock().await;
-        if let Err(e) = user_data_socket.send_to(data, &server_ip).await {
+        let temp_ip = Arc::clone(&server_ip);
+        if let Err(e) = temp_socket.send_to(data, &*temp_ip).await {
             eprintln!("[LIB] Failed to send data: {}", e);
             return; // Exit the loop if sending fails
         }
         else { println!("[LIB] Sent User Data to Server") }
-        drop(user_data_socket);
         drop(temp_socket);
 
         println!("[LIB] Prepairing Audio Loops");
@@ -80,9 +77,11 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
 
         drop(driver);
 
-        let (sender, reciever) = oneshot::channel();
+        let (sender, reciever) = watch::channel(());
 
-        //Audio Checker
+        //Server Checks
+        let disconnect_socket = Arc::clone(&socket);
+        let disconnect_ip = Arc::clone(&server_ip);
         tauri::async_runtime::spawn(async move {
             println!("[LIB] Sending / Receiving Audio Data");
             loop {
@@ -91,7 +90,6 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
                     let mut driver = loop_driver1.lock().await;
                     if !driver.can_send_audio {
                         driver.is_connected = false;
-                        drop(driver);
 
                         sender.send(()).unwrap();
 
@@ -100,7 +98,19 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
                         println!("[LIB] Dropping Audio Input Stream / Output Stream");
                         audio_driver.stop_input_stream();
                         audio_driver.stop_output_stream();
+
+                        //Send Server Disconnect Information
+                        if let Err(e) = disconnect_socket.send_to("disconnect".to_string().as_bytes(), &*disconnect_ip).await {
+                            eprintln!("[LIB] Failed to send data: {}\nClosed heartbeat sub-task", e);
+                            return; // Exit the loop if sending fails
+                        }
+                        else {
+                            println!("[LIB] Sent Heartbeat...");
+                        }
+
                         drop(audio_driver);
+                        drop(driver);
+
                         break;
                     }
 
@@ -110,26 +120,53 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
         });
         
         //Audio Recieve Loop
-        let audiorecsocket = Arc::clone(&socket);
-        println!("[LIB] Sending / Receiving Audio Data");
-        tokio::select! {
-            _ = async {
-                loop {
-                    let socket = audiorecsocket.lock().await;
-                    let mut buf = [0; 1024];
-                    if let Ok((len, addr)) = socket.recv_from(&mut buf).await {
-                        println!("{:?} bytes received from {:?}", len, addr);
-                        // Play Audio
+        let mut audio_rx = reciever.clone();
+        let data_recieve_socket = Arc::clone(&socket);
+        tauri::async_runtime::spawn(async move {
+            println!("[LIB] Sending / Receiving Audio Data");
+            tokio::select! {
+                _ = async {
+                    loop {
+                        let mut buf = [0; 1024];
+                        if let Ok((len, addr)) = data_recieve_socket.recv_from(&mut buf).await {
+                            println!("{:?} bytes received from {:?}", len, addr);
+                            // Play Audio
+                        }
                     }
+        
+                    // Help the rust type inferencer out
+                    Ok::<_, io::Error>(())
+                } => {}
+                _ = audio_rx.changed() => {
+                    println!("[LIB] Audio Loop (RECIEVE) Terminated");
                 }
-    
-                // Help the rust type inferencer out
-                Ok::<_, io::Error>(())
-            } => {}
-            _ = reciever => {
-                println!("[LIB] Audio Loop (RECIEVE) Terminated");
             }
-        }
+        });
+
+        //Heartbeat - Send Data Every ~ 1 Sec to not be disconnected
+        let mut heartbeat_rx = reciever.clone();
+        let heartbeat_socket = Arc::clone(&socket);
+        let heartbeat_ip = Arc::clone(&server_ip);
+        tauri::async_runtime::spawn(async move {
+            println!("[LIB] Starting Heartbeat Sub-Task");
+            tokio::select! {
+                _ = async {
+                    loop {
+                        //Wait 1 second
+                        sleep(Duration::from_secs(1)).await;
+
+                        //Send Nothing, Just Let Serevr know i'm Alive
+                        if let Err(e) = heartbeat_socket.send_to("hb".to_string().as_bytes(), &*heartbeat_ip).await {
+                            eprintln!("[LIB] Failed to send data: {}\nClosed heartbeat sub-task", e);
+                            return; // Exit the loop if sending fails
+                        }
+                    }
+                } => {}
+                _ = heartbeat_rx.changed() => {
+                    println!("[LIB] Audio Loop (RECIEVE) Terminated");
+                }
+            }
+        });
     });
 }
 
