@@ -24,6 +24,8 @@ use std::string::String;
 use tokio::sync::Mutex;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use audiopus::{coder::Encoder, Application, Channels, SampleRate};
+use std::error::Error;
 
 pub fn run_audio_debugger() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize the default audio host
@@ -302,110 +304,164 @@ impl AudioDriver {
         return found_device
     }
 
-    pub fn start_audio_capture(&mut self, socket: Arc<Mutex<&tokio::net::UdpSocket>>) -> Option<Stream> {
-        // Get the default host
-        let host = cpal::default_host();
+    pub fn start_audio_capture(&mut self, socket: Arc<tokio::net::UdpSocket>, server_ip: Arc<String>) {
+        let input_stream_active = self.input_stream.clone();
+        
+        tauri::async_runtime::spawn(async move {
+            let host = cpal::default_host();
 
-        println!("[AUDIO DRIVER] Started Audio Recording");
-    
-        // Get the input device
-        let input_device = match host.default_input_device() {
-            Some(device) => device,
-            None => {
-                eprintln!("[AUDIO DRIVER] No input device available.");
-                return None;
-            }
-        };
-    
-        // Get the input device configuration
-        let input_config = match input_device.default_input_config() {
-            Ok(config) => config,
-            Err(err) => {
-                eprintln!("[AUDIO DRIVER] Failed to get default input config: {}", err);
-                return None;
-            }
-        };
-    
-        // Extract input sample rate and format
-        let input_sample_rate = input_config.sample_rate().0;
-        let output_sample_rate = 44800; // Use 44.8kHz for output
-    
-        // Create a ring buffer for audio samples
-        let ring = HeapRb::<f32>::new(input_sample_rate as usize * 2);
-        let (mut producer, mut consumer) = ring.split();
-    
-        // Define the stream configuration
-        let stream_config = cpal::StreamConfig {
-            channels: input_config.channels(),
-            sample_rate: input_config.sample_rate(),
-            buffer_size: cpal::BufferSize::Default,
-        };
-    
-        // Build the input stream
-        let input_stream = match input_device.build_input_stream(
-            &stream_config,
-            move |data: &[f32], _: &InputCallbackInfo| {
-                let mut buffer = Vec::new();
-    
-                // Handle mono or stereo input
-                let num_channels = input_config.channels() as usize;
-                if num_channels == 1 {
-                    // Convert mono to stereo
-                    for &sample in data {
-                        buffer.push(sample); // Left channel
-                        buffer.push(sample); // Right channel
-                    }
-                } else if num_channels == 2 {
-                    // Directly copy stereo data
-                    buffer.extend_from_slice(data);
+            println!("[AUDIO DRIVER] Started Audio Recording");
+        
+            // Get the input device
+            let input_device = match host.default_input_device() {
+                Some(device) => device,
+                None => {
+                    eprintln!("[AUDIO DRIVER] No input device available.");
+                    return;
                 }
-    
-                // Resample if necessary
-                if input_sample_rate != output_sample_rate {
-                    if !buffer.is_empty() {
-                        buffer = convert(
-                            input_sample_rate,
-                            output_sample_rate,
-                            2, // Dual-channel audio
-                            ConverterType::SincBestQuality,
-                            &buffer,
-                        )
-                        .expect("Resampling failed");
-                    }
+            };
+        
+            // Get default input device
+            let input_device = match host.default_input_device() {
+                Some(device) => device,
+                None => {
+                    eprintln!("[AUDIO DRIVER : DEBUG] No input device found.");
+                    return;
                 }
-    
-                // Push samples to the ring buffer
-                for &sample in buffer.iter() {
-                    producer.try_push(sample).unwrap_or_else(|_| {
-                        // Drop the oldest sample if the buffer is full
-                        consumer.try_pop();
-                    });
-                }
-    
-                // TODO: Send audio via UDP socket every 20ms
-                // Example: Encode with Opus @ 44.8kHz dual channel
-            },
-            |err| eprintln!("[AUDIO DRIVER] Error in input stream: {}", err),
-            None,
-        ) {
-            Ok(stream) => stream,
-            Err(err) => {
-                eprintln!("[AUDIO DRIVER] Failed to build input stream: {}", err);
-                return None;
-            }
-        };
+            };
 
-        //print_type_of(&input_stream);
-    
-        // Start the input stream
-        if let Err(err) = input_stream.play() {
-            eprintln!("[AUDIO DRIVER] Failed to start input stream: {}", err);
-            return None;
-        }
-    
-        println!("[AUDIO DRIVER] Audio capture started.");
+            // Get input config
+            let input_config: StreamConfig = input_device.default_input_config().unwrap().into();
+        
+            // Extract input sample rate and format
+            let input_sample_rate = input_config.sample_rate.0;
+            let output_sample_rate = 44800; // Use 44.8kHz for output
+        
+            // Create a ring buffer for audio samples   {Force Dual Channel}
+            let ring = HeapRb::<f32>::new(input_sample_rate as usize * 2);
+            let (mut producer, mut consumer) = ring.split();
+            
+            //Encode the Audio with Opus
+            let mut encoder = Encoder::new(SampleRate::Hz48000, Channels::Stereo, Application::Voip);
 
-        return Some(input_stream);
+            //0.02 = 20ms, 2 = 2 channels + extra 1.5
+            let frame_samples: usize = (output_sample_rate as f32 * 0.02 * 2.0 * 1.5) as usize;
+
+            //PCM Buffer to convert to Opus
+            let mut pcm_buffer: Vec<f32> = vec![0.0; frame_samples];
+            let mut compressed_data: Vec<u8> = vec![0; frame_samples];
+
+            println!("Finished Audio Input Prep...");
+        
+            // Build the input stream
+            // Input stream
+            let input_stream = input_device
+                .build_input_stream(
+                    &input_config,
+                    move |data: &[f32], _: &InputCallbackInfo| {
+                        let mut buffer = Vec::new();
+            
+                        println!("-1");
+
+                        // Handle mono or stereo input
+                        let num_channels = input_config.channels as usize;
+                        if num_channels == 1 {
+                            // Convert mono to stereo
+                            for &sample in data {
+                                buffer.push(sample); // Left channel
+                                buffer.push(sample); // Right channel
+                            }
+                        } else if num_channels == 2 {
+                            // Directly copy stereo data
+                            buffer.extend_from_slice(data);
+                        }
+            
+                        // Resample if necessary
+                        if input_sample_rate != output_sample_rate {
+                            if !buffer.is_empty() {
+                                buffer = convert(
+                                    input_sample_rate,
+                                    output_sample_rate,
+                                    2, // Dual-channel audio
+                                    ConverterType::SincBestQuality,
+                                    &buffer,
+                                )
+                                .expect("Resampling failed");
+                            }
+                        }
+            
+                        // Push samples to the ring buffer
+                        for &sample in buffer.iter() {
+                            producer.try_push(sample).unwrap_or_else(|_| {
+                                // Drop the oldest sample if the buffer is full
+                                consumer.try_pop();
+                            });
+                        }
+            
+                        // TODO: Send audio via UDP socket every 20ms
+                        // Example: Encode with Opus @ 44.8kHz dual channel
+                        if consumer.iter().count() >= frame_samples {
+                            println!("[AUDIO DRIVER] Prepairing to Send 20ms of Data to Server");
+                            println!("[AUDIO DRIVER]    or {} samples", frame_samples);
+
+                            match encoder {
+                                Ok(ref enc) => {
+                                    println!("[AUDIO DRIVER/LIB] Sending Audio Data to Server");
+                                
+                                    // Fill the PCM buffer with 20ms worth of samples
+                                    pcm_buffer.clear();
+                                    for _ in 0..frame_samples {
+                                        if let Some(sample) = consumer.try_pop() {
+                                            pcm_buffer.push(sample as f32); // Convert f32 to i16
+                                        }
+                                    }
+                                
+                                    // Compress the PCM data
+                                    match enc.encode_float(&pcm_buffer, &mut compressed_data) {
+                                        Ok(compressed_size) => {
+                                            compressed_data.truncate(compressed_size);
+
+                                            socket.send_to(&compressed_data, &*server_ip);
+                                        }
+                                        Err(e) => {
+                                            eprintln!("[AUDIO DRIVER/LIB] Failed to encode PCM data: {}", e);
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    eprintln!("[AUDIO DRIVER] Encoder Not Functional: {}", e);
+                                }
+                            }
+                        }
+                        else {
+                            println!("[AUDIO DRIVER] not enough samples: missing {} samples", frame_samples - consumer.iter().count());
+                        } 
+                    },
+                    |err| eprintln!("[AUDIO DRIVER] Input stream error: {}", err),
+                    None,
+                )
+                .expect("[AUDIO DRIVER] Failed to create input stream.");
+
+            //print_type_of(&input_stream);
+        
+            // Start the input stream
+            if let Err(err) = input_stream.play() {
+                eprintln!("[AUDIO DRIVER : DEBUG] Failed to start input stream: {}", err);
+                return;
+            }
+            else { input_stream_active.store(true, Ordering::SeqCst); }
+        
+            println!("[AUDIO DRIVER] Audio capture started.");
+
+            while input_stream_active.load(Ordering::SeqCst)
+            {
+                // Allow other threads to work (wait 5 samples of time)
+                let sample_time = 60.0 / input_sample_rate as f32;
+                std::thread::sleep(std::time::Duration::from_millis((sample_time * 5.0) as u64));
+            }
+
+            println!("[AUDIO DRIVER] Audio capture ended.");
+        });
     }
 
     //Returns the last 20ms of audio or sample_rate * 0.2;

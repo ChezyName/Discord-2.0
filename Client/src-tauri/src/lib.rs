@@ -73,7 +73,11 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
         let mut audio_driver = audiodriver::AudioDriver::default();
         //let input_stream = audio_driver.start_audio_capture(socket.clone());
 
-        audio_driver.audio_debugger();
+        let audio_sender_socket = Arc::clone(&socket);
+        let audio_sender_ip = Arc::clone(&server_ip);
+        audio_driver.start_audio_capture(audio_sender_socket,audio_sender_ip);
+
+        //audio_driver.audio_debugger();
 
         drop(driver);
 
@@ -130,7 +134,7 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
                         let mut buf = [0; 1024];
                         if let Ok((len, addr)) = data_recieve_socket.recv_from(&mut buf).await {
                             println!("{:?} bytes received from {:?}", len, addr);
-                            // Play Audio
+                            // Opus Decode -> Play Audio
                         }
                     }
         
