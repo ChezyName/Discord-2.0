@@ -187,8 +187,8 @@ func HostVoiceServer(server *Server) {
 			server.Connections[index] = server.Connections[len(server.Connections)-1]
 			server.Connections = server.Connections[:len(server.Connections)-1]
 		} else {
-			fmt.Println("Recieved Audio Data: ")
-			fmt.Println(buffer)
+			//fmt.Println("Recieved Audio Data: ")
+			//fmt.Println(buffer)
 
 			//This is Audio Data
 			for _, item := range server.Connections {

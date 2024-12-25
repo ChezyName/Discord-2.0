@@ -347,12 +347,13 @@ impl AudioDriver {
             match temp_encoder {
                 Ok(mut encoder) => {
                     // Set the bitrate and max bandwidth after successfully creating the encoder
-                    //coder.set_bitrate(64000);
+                    encoder.set_bitrate(audiopus::Bitrate::BitsPerSecond(64_000));
                     encoder.set_max_bandwidth(Bandwidth::Fullband);
+
                     println!("[AUDIO DRIVER] Encoder Successfully Initialized");
 
                     //0.02 = 20ms, 2 = 2 channels + extra 1.5
-                    let frame_samples: usize = (output_sample_rate as f32 * 0.02 * 2.0 * 1.5) as usize;
+                    let frame_samples: usize = (output_sample_rate as f32 * 0.02 * 2.0) as usize;
 
                     //PCM Buffer to convert to Opus
                     let mut pcm_buffer: Vec<f32> = vec![0.0; frame_samples];
@@ -367,8 +368,6 @@ impl AudioDriver {
                             &input_config,
                             move |data: &[f32], _: &InputCallbackInfo| {
                                 let mut buffer = Vec::new();
-                    
-                                println!("-1");
 
                                 // Handle mono or stereo input
                                 let num_channels = input_config.channels as usize;
@@ -408,10 +407,10 @@ impl AudioDriver {
                                 // TODO: Send audio via UDP socket every 20ms
                                 // Example: Encode with Opus @ 48kHz dual channel
                                 if consumer.iter().count() >= frame_samples {
-                                    println!("[AUDIO DRIVER] Prepairing to Send 20ms of Data to Server");
-                                    println!("[AUDIO DRIVER]    or {} samples", frame_samples);
+                                    //println!("[AUDIO DRIVER] Prepairing to Send 20ms of Data to Server");
+                                    //println!("[AUDIO DRIVER]    or {} samples", frame_samples);
 
-                                    println!("[AUDIO DRIVER/LIB] Sending Audio Data to Server");
+                                   // println!("[AUDIO DRIVER/LIB] Sending Audio Data to Server");
                                         
                                     // Fill the PCM buffer with 20ms worth of samples
                                     pcm_buffer.clear();
@@ -426,7 +425,14 @@ impl AudioDriver {
                                         Ok(compressed_size) => {
                                             compressed_data.truncate(compressed_size);
 
-                                            socket.send_to(&compressed_data, &*server_ip);
+                                            let temp_data = compressed_data.clone(); // Clone the data for the async task
+                                            let temp_ip = Arc::clone(&server_ip); // Clone server_ip
+                                            let temp_socket = Arc::clone(&socket); // Clone the socket
+                                            tauri::async_runtime::spawn(async move {
+                                                if let Ok(_) = temp_socket.send_to(&temp_data, &*temp_ip).await {
+                                                    println!("[AUDIO DRIVER/LIB] Packet Sent");
+                                                }
+                                            });
                                         }
                                         Err(e) => {
                                             eprintln!("[AUDIO DRIVER/LIB] Failed to encode PCM data: {}", e);
