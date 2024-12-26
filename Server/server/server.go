@@ -107,7 +107,9 @@ func HostVoiceServer(server *Server) {
 	fmt.Println("UDP server listening on " + server.Address + ":" + server.PortVoice)
 
 	// Buffer to store incoming data
-	buffer := make([]byte, 1024)
+
+	//2048 to make sure we have enough space
+	buffer := make([]byte, 2048)
 
 	// Read data in a loop
 	for {
@@ -195,12 +197,15 @@ func HostVoiceServer(server *Server) {
 				//send Audio Data if NOT self
 				if strings.Compare(item.Address.String(), addr.String()) != 0 || debugMode {
 					_, err = conn.WriteToUDP(buffer, addr)
-					if err != nil {
-						fmt.Println("Error sending voice data to {"+addr.String()+"}, err:", err)
-						continue
-					} else {
-						fmt.Println("Sending voice data to {" + addr.String() + "}")
-					}
+
+					/*
+						if err != nil {
+							fmt.Println("Error sending voice data to {"+addr.String()+"}, err:", err)
+							continue
+						} else {
+							fmt.Println("Sending voice data to {" + addr.String() + "}")
+						}
+					*/
 				}
 			}
 
@@ -234,6 +239,10 @@ func UserListClearer(timeFrameS int64, server *Server) {
 func HostBothServers(server *Server, isDebug bool) {
 	fmt.Println("Server '" + server.ServerName + "' is Ready")
 	debugMode = isDebug
+
+	if isDebug {
+		fmt.Println("	- Additionally, Server is running in DEBUG MODE")
+	}
 
 	go HostDataServer(server)
 	go HostVoiceServer(server)

@@ -352,7 +352,7 @@ impl AudioDriver {
 
                     println!("[AUDIO DRIVER] Encoder Successfully Initialized");
 
-                    //0.02 = 20ms, 2 = 2 channels + extra 1.5
+                    //0.02 = 20ms, 2 = 2 channels
                     let frame_samples: usize = (output_sample_rate as f32 * 0.02 * 2.0) as usize;
 
                     //PCM Buffer to convert to Opus

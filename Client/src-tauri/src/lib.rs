@@ -5,6 +5,7 @@ use std::io;
 use tokio::time::{sleep, Duration};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{InputCallbackInfo, OutputCallbackInfo, StreamConfig, Stream};
+use audiopus::{coder::Decoder, Application, Channels, SampleRate, Bandwidth};
 use ringbuf::{
     traits::*,
     HeapRb,
@@ -127,19 +128,40 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
         let mut audio_rx = reciever.clone();
         let data_recieve_socket = Arc::clone(&socket);
         tauri::async_runtime::spawn(async move {
-            println!("[LIB] Sending / Receiving Audio Data");
+            println!("[LIB] Receiving Audio Data");
             tokio::select! {
                 _ = async {
-                    loop {
-                        let mut buf = [0; 1024];
-                        if let Ok((len, addr)) = data_recieve_socket.recv_from(&mut buf).await {
-                            println!("{:?} bytes received from {:?}", len, addr);
-                            // Opus Decode -> Play Audio
+                    let mut temp_decoder = Decoder::new(SampleRate::Hz48000, Channels::Stereo);
+            
+                    match temp_decoder {
+                        Ok(mut decoder) => {
+                            loop {
+                                let mut buf = [0; 2048];
+                                let mut pcm_audio = vec![0.0; 48000 * 2];
+
+                                if let Ok((len, addr)) = data_recieve_socket.recv_from(&mut buf).await {
+                                    //println!("{:?} bytes received from {:?}", len, addr);
+                                    // Opus Decode -> Play Audio
+
+                                    //Need data in type of u8
+                                    let vec_buf: Vec<u8> = Vec::from(&buf[..len]);
+
+                                    // Decode the received Opus data into PCM samples
+                                    match decoder.decode_float(Some(&vec_buf), &mut pcm_audio, false) {
+                                        Ok(decoded_len) => {
+                                            println!("[AUDIO DRIVER/LIB] Decoded {} samples of audio.", decoded_len);
+                                        }
+                                        Err(e) => {
+                                            eprintln!("[AUDIO DRIVER/LIB] Failed to decode Opus data: {:?}", e);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("[AUDIO DRIVER/LIB] Failed to create encoder: {}", e);
                         }
                     }
-        
-                    // Help the rust type inferencer out
-                    Ok::<_, io::Error>(())
                 } => {}
                 _ = audio_rx.changed() => {
                     println!("[LIB] Audio Loop (RECIEVE) Terminated");
