@@ -122,7 +122,6 @@ func HostVoiceServer(server *Server) {
 		// Print the received data
 		//fmt.Printf("Received %d bytes from %s: %s\n", n, addr, string(buffer[:n]))
 		data := string(buffer[:n])
-		//fmt.Println(data)
 
 		//Check if User is sending thier username
 		if strings.Contains(data, "username:") {
@@ -196,7 +195,7 @@ func HostVoiceServer(server *Server) {
 			for _, item := range server.Connections {
 				//send Audio Data if NOT self
 				if strings.Compare(item.Address.String(), addr.String()) != 0 || debugMode {
-					_, err = conn.WriteToUDP(buffer, addr)
+					_, err = conn.WriteToUDP(buffer[:n], addr)
 
 					/*
 						if err != nil {
