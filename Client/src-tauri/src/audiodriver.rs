@@ -21,11 +21,14 @@ use ringbuf::{
 };
 use samplerate::{convert, ConverterType};
 use std::string::String;
-use tokio::sync::Mutex;
+use tokio::sync::{watch, Mutex};
+use tokio::sync::mpsc;
+use tokio::sync::mpsc::{Sender, Receiver};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use audiopus::{coder::Encoder, Application, Channels, SampleRate, Bandwidth};
 use std::error::Error;
+use rodio::{OutputStream, OutputStreamHandle, Sink, Source};
 
 pub fn run_audio_debugger() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize the default audio host
@@ -128,6 +131,9 @@ pub struct AudioDriver {
     output_device: String,
     input_stream: Arc<AtomicBool>,
     output_stream: Arc<AtomicBool>,
+    output_stream_sender: Arc<Sender<Vec<f32>>>,
+    output_stream_receiver: Arc<Receiver<Vec<f32>>>,
+    output_stream_handler: OutputStreamHandle,
 }
 
 impl Default for AudioDriver {
@@ -188,12 +194,22 @@ impl Default for AudioDriver {
         let ring = HeapRb::<f32>::new(buffer_capacity * 2);
         let (producer, consumer) = ring.split();
 
+        let (tx, mut rx) = mpsc::channel::<Vec<f32>>(1920);
+        let (_stream, stream_handle) = OutputStream::try_default().expect("[AUDIO DRIVER] Failed to use Audio Output");
+
+        // We leak `OutputStream` to prevent the audio from stopping.
+        //AKA FUCK YOU _STREAM
+        std::mem::forget(_stream);
+
         // Return the constructed AudioDriver
         Self {
             input_device: String::from(input_device_name),
             output_device: String::from(output_device_name),
             input_stream: Arc::new(AtomicBool::new(false)),
             output_stream: Arc::new(AtomicBool::new(false)),
+            output_stream_sender: Arc::new(tx),
+            output_stream_receiver: Arc::new(rx),
+            output_stream_handler: stream_handle,
         }
     }
 }
@@ -222,11 +238,21 @@ impl AudioDriver {
             output_config.sample_rate.0, output_config.channels
         );
 
+        let (tx, mut rx) = mpsc::channel::<Vec<f32>>(1920);
+        let (_stream, stream_handle) = OutputStream::try_default().expect("[AUDIO DRIVER] Failed to use Audio Output");
+
+        // We leak `OutputStream` to prevent the audio from stopping.
+        //AKA FUCK YOU _STREAM
+        std::mem::forget(_stream);
+
         Ok(Self {
             input_device: String::from(input_device.name().unwrap_or_else(|_| "Unknown device".to_string())),
             output_device: String::from(output_device.name().unwrap_or_else(|_| "Unknown device".to_string())),
             input_stream: Arc::new(AtomicBool::new(false)),
             output_stream: Arc::new(AtomicBool::new(false)),
+            output_stream_sender: Arc::new(tx),
+            output_stream_receiver: Arc::new(rx),
+            output_stream_handler: stream_handle,
         })
     }
 
@@ -302,6 +328,40 @@ impl AudioDriver {
         }
 
         return found_device
+    }
+
+    pub fn start_audio_player(&mut self) {
+        /*
+        let output_stream_active = self.output_stream.clone();
+        let audio_reciever = self.output_stream_receiver.clone();
+        
+        tauri::async_runtime::spawn(async move {
+            let (_stream, stream_handle) = OutputStream::try_default().expect("[AUDIO DRIVER] Failed to use Audio Output");
+            let (sender, reciever) = watch::channel(());
+            println!("[AUDIO DRIVER] Audio Player Created");
+
+            let audio_output_stream_ender = reciever.clone();
+            tokio::select! {
+                _ = async {
+                    loop {
+                        while let Some(data) = audio_reciever.recv().await {
+                            //play audio data
+                            println!("audio recieved from other thread.")
+                        }
+                    }
+                } => {}
+                _ = audio_output_stream_ender.changed() => {
+                    println!("[AUDIO DRIVER] Audio Player Stopped");
+                }
+            }
+
+            //Wait for the audio stream to be stopped
+            while output_stream_active.load(Ordering::SeqCst) { std::thread::sleep(std::time::Duration::from_millis(5)); }
+
+            //End the stream
+            sender.send(()).unwrap();
+        });
+        */
     }
 
     pub fn start_audio_capture(&mut self, socket: Arc<tokio::net::UdpSocket>, server_ip: Arc<String>) {
@@ -419,7 +479,8 @@ impl AudioDriver {
                                             pcm_buffer.push(sample as f32); // Convert f32 to i16
                                         }
                                     }
-                                
+
+                                    
                                     // Compress the PCM data
                                     match encoder.encode_float(&pcm_buffer, &mut compressed_data) {
                                         Ok(compressed_size) => {
@@ -641,5 +702,13 @@ impl AudioDriver {
     pub fn stop_output_stream(&mut self) {
         println!("[AUDIO DRIVER] Stopping Audio OUTPUT Stream");
         self.output_stream.store(false, Ordering::SeqCst);
+    }
+
+    pub fn play_audio(&mut self, pcm_audio: &[f32]) {
+        let source = rodio::buffer::SamplesBuffer::new(2, 44100, pcm_audio);
+        match self.output_stream_handler.play_raw(source.convert_samples()) {
+            Ok(_) => println!("Playback started successfully."),
+            Err(e) => eprintln!("Failed to play audio: {:?}", e),
+        }
     }
 }

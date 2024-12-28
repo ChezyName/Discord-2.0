@@ -71,22 +71,25 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
         let loop_driver1 = Arc::clone(&driver_state);
         let loop_driver2 = Arc::clone(&driver_state);
 
-        let mut audio_driver = audiodriver::AudioDriver::default();
+        let mut audio_driver = Arc::new(audiodriver::AudioDriver::default());
         //let input_stream = audio_driver.start_audio_capture(socket.clone());
 
         let audio_sender_socket = Arc::clone(&socket);
         let audio_sender_ip = Arc::clone(&server_ip);
-        audio_driver.start_audio_capture(audio_sender_socket,audio_sender_ip);
 
-        //audio_driver.audio_debugger();
+        let temp_audio_driver = Arc::clone(&audio_driver);
+        temp_audio_driver.start_audio_capture(audio_sender_socket,audio_sender_ip);
+        temp_audio_driver.start_audio_player();
 
         drop(driver);
+        drop(temp_audio_driver);
 
         let (sender, reciever) = watch::channel(());
 
         //Server Checks
         let disconnect_socket = Arc::clone(&socket);
         let disconnect_ip = Arc::clone(&server_ip);
+        let disconnect_audio_driver = Arc::clone(&audio_driver);
         tauri::async_runtime::spawn(async move {
             println!("[LIB] Sending / Receiving Audio Data");
             loop {
@@ -101,8 +104,8 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
                         println!("[LIB] Disconnecting from Server");
 
                         println!("[LIB] Dropping Audio Input Stream / Output Stream");
-                        audio_driver.stop_input_stream();
-                        audio_driver.stop_output_stream();
+                        disconnect_audio_driver.stop_input_stream();
+                        disconnect_audio_driver.stop_output_stream();
 
                         //Send Server Disconnect Information
                         if let Err(e) = disconnect_socket.send_to("disconnect".to_string().as_bytes(), &*disconnect_ip).await {
@@ -127,6 +130,7 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
         //Audio Recieve Loop
         let mut audio_rx = reciever.clone();
         let data_recieve_socket = Arc::clone(&socket);
+        let recieve_audio_driver = Arc::clone(&audio_driver);
         tauri::async_runtime::spawn(async move {
             println!("[LIB] Receiving Audio Data");
             tokio::select! {
@@ -137,10 +141,10 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
                         Ok(mut decoder) => {
                             loop {
                                 let mut buf = [0; 2048];
-                                let mut pcm_audio = vec![0.0; 1920];
+                                let mut pcm_audio = vec![0.0; 1920]; //1920 = 48khz * 0.02 * 2
 
                                 if let Ok((len, addr)) = data_recieve_socket.recv_from(&mut buf).await {
-                                    println!("{:?} bytes received from {:?}", len, addr);
+                                    println!("[LIB] {:?} bytes received from {:?}", len, addr);
                                     // Opus Decode -> Play Audio
 
                                     //Need data in type of u8
@@ -150,6 +154,9 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
                                     match decoder.decode_float(Some(&vec_buf), &mut pcm_audio, false) {
                                         Ok(decoded_len) => {
                                             println!("[AUDIO DRIVER/LIB] Decoded {} samples of audio.", decoded_len);
+
+                                            //Play the recieved audio instantly
+                                            recieve_audio_driver.play_audio(&pcm_audio);
                                         }
                                         Err(e) => {
                                             eprintln!("[AUDIO DRIVER/LIB] Failed to decode Opus data: {:?}", e);
