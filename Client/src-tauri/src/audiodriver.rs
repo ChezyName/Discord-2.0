@@ -480,7 +480,7 @@ impl AudioDriver {
                                         }
                                     }
 
-                                    
+
                                     // Compress the PCM data
                                     match encoder.encode_float(&pcm_buffer, &mut compressed_data) {
                                         Ok(compressed_size) => {
@@ -705,7 +705,7 @@ impl AudioDriver {
     }
 
     pub fn play_audio(&mut self, pcm_audio: &[f32]) {
-        let source = rodio::buffer::SamplesBuffer::new(2, 44100, pcm_audio);
+        let source = rodio::buffer::SamplesBuffer::new(2, 48000, pcm_audio);
         match self.output_stream_handler.play_raw(source.convert_samples()) {
             Ok(_) => println!("Playback started successfully."),
             Err(e) => eprintln!("Failed to play audio: {:?}", e),

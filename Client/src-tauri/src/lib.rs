@@ -71,18 +71,18 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
         let loop_driver1 = Arc::clone(&driver_state);
         let loop_driver2 = Arc::clone(&driver_state);
 
-        let mut audio_driver = Arc::new(audiodriver::AudioDriver::default());
+        let mut audio_driver = Arc::new(Mutex::new(audiodriver::AudioDriver::default()));
         //let input_stream = audio_driver.start_audio_capture(socket.clone());
 
         let audio_sender_socket = Arc::clone(&socket);
         let audio_sender_ip = Arc::clone(&server_ip);
 
-        let temp_audio_driver = Arc::clone(&audio_driver);
-        temp_audio_driver.start_audio_capture(audio_sender_socket,audio_sender_ip);
-        temp_audio_driver.start_audio_player();
+        let mut audio_driver_locked = audio_driver.lock().await;
+        audio_driver_locked.start_audio_capture(audio_sender_socket,audio_sender_ip);
+        audio_driver_locked.start_audio_player();
+        drop(audio_driver_locked);
 
         drop(driver);
-        drop(temp_audio_driver);
 
         let (sender, reciever) = watch::channel(());
 
@@ -104,8 +104,10 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
                         println!("[LIB] Disconnecting from Server");
 
                         println!("[LIB] Dropping Audio Input Stream / Output Stream");
-                        disconnect_audio_driver.stop_input_stream();
-                        disconnect_audio_driver.stop_output_stream();
+                        let mut audio_driver_temp = disconnect_audio_driver.lock().await;
+                        audio_driver_temp.stop_input_stream();
+                        audio_driver_temp.stop_output_stream();
+                        drop(audio_driver_temp);
 
                         //Send Server Disconnect Information
                         if let Err(e) = disconnect_socket.send_to("disconnect".to_string().as_bytes(), &*disconnect_ip).await {
@@ -116,7 +118,6 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
                             println!("[LIB] Sent Heartbeat...");
                         }
 
-                        drop(audio_driver);
                         drop(driver);
 
                         break;
@@ -156,7 +157,9 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
                                             println!("[AUDIO DRIVER/LIB] Decoded {} samples of audio.", decoded_len);
 
                                             //Play the recieved audio instantly
-                                            recieve_audio_driver.play_audio(&pcm_audio);
+                                            let mut audio_driver_temp = recieve_audio_driver.lock().await;
+                                            audio_driver_temp.play_audio(&pcm_audio);
+                                            drop(audio_driver_temp);
                                         }
                                         Err(e) => {
                                             eprintln!("[AUDIO DRIVER/LIB] Failed to decode Opus data: {:?}", e);
