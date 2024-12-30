@@ -1,6 +1,6 @@
 [package]
 name = "discord2"
-version = "2.2.4"
+version = "0.1.0"
 description = "Discord by a broke comp-sci student"
 authors = ["ChezyName"]
 edition = "2021"

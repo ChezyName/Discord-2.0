@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { getServerData, getServerList } from './FunctionLibrary';
 
 const SERVER_SEARCH_INTERVAL = 500;

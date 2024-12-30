@@ -751,7 +751,7 @@ dependencies = [
 
 [[package]]
 name = "discord2"
-version = "2.2.4"
+version = "0.1.0"
 dependencies = [
  "audiopus",
  "cpal",
