@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getServerData, getServerList } from './FunctionLibrary';
+import ServerMenu from './ServerMenu';
 
 const SERVER_SEARCH_INTERVAL = 500;
 
@@ -11,6 +12,7 @@ export type ServerInformation = {
 
 const SidePanel = ({setServerIP, setIsConnected ,setInitServerData}: any) => {
   const [myServers, setMyServers] = useState<ServerInformation[]>([]);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     //Get Init Server Data
@@ -31,7 +33,8 @@ const SidePanel = ({setServerIP, setIsConnected ,setInitServerData}: any) => {
   }, []);
 
   return (
-    <div style={{width: '30%', height: '100%', backgroundColor: 'green'}}>
+    <div style={{width: '30%', height: '100%', backgroundColor: 'green', minWidth: "calc(480px * 0.3)"}}>
+      <ServerMenu setSearch={setSearch}/>
         {
           myServers.length > 0 ? (myServers.map((item) => {
             console.log("Adding: ", item)

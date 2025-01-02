@@ -37,7 +37,7 @@ const MainScreen = () => {
 
       <div style={{backgroundColor: '#222', color: '#FFF', width: '100%', borderLeft: '5px solid black',
         display: 'flex', flexDirection: 'column'}}>
-        <div style={{width: '100%', height: '5%', borderBottom: '5px solid black',
+        <div style={{width: '100%', height: '5%', minHeight: "40px", borderBottom: '5px solid black',
           display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
           {serverData?.serverName}
           { isConnected ? <button onClick={() => {
