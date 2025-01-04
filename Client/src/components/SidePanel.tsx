@@ -33,7 +33,7 @@ const SidePanel = ({setServerIP, setIsConnected ,setInitServerData}: any) => {
   }, []);
 
   return (
-    <div style={{width: '30%', height: '100%', backgroundColor: 'green', minWidth: "calc(480px * 0.3)"}}>
+    <div style={{width: '30%', height: '100%', backgroundColor: 'green', minWidth: "calc(240px)"}}>
       <ServerMenu setSearch={setSearch}/>
         {
           myServers.length > 0 ? (myServers.map((item) => {

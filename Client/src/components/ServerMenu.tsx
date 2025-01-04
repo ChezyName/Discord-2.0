@@ -40,13 +40,22 @@ const ServerMenu = ({setSearch}:any) => {
 
   return (
     <>
-      <div style={{backgroundColor: "purple", width: "100%", height: "5%", marginBottom: "2%", minHeight: "40px",
-        display: 'flex', flexDirection: "row"}}>
+      <div style={{backgroundColor: "transparent", width: "calc(100% - 4px)", height: "5%", marginBottom: "2%", minHeight: "40px",
+        display: 'flex', flexDirection: "row", margin: "4px"}}>
 
           {/** Open Modal Window for adding Server via URL / IP */}
-          <Button sx={{aspectRatio: "1"}} onClick={() => {setModalOpen(true);}}><AddIcon/></Button>
-          <TextField sx={{marginRight: "2%", marginLeft: "2%", height: '80%'}}
-            id="server-search" label="Search" type="search" variant='standard'
+          <Button sx={{aspectRatio: "1", borderRadius: "4px", border: "1px solid black"}} onClick={() => {setModalOpen(true);}}><AddIcon/></Button>
+          <TextField InputLabelProps={{shrink: true, style: {display: 'none'}}} sx={{marginRight: "2%", marginLeft: "2%",
+              '& legend': { display: 'none' }, '& fieldset': { top: 0 }, width: "auto", display: 'flex', flexGrow: 1,
+              '& .MuiInputBase-input': {height: 'calc(1.4375em/2)'},
+            }}
+            InputProps={{
+              sx: {
+                height: '100%',
+                alignItems: 'start'
+              }
+            }}
+            id="server-search" label="Search" type="search" variant='outlined' placeholder='Search Server'
             onChange={(event) => {
               if(setSearch) setSearch(event.target.value);
             }}/>

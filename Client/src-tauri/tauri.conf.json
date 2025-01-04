@@ -14,7 +14,10 @@
       {
         "title": "Discord 2.0",
         "width": 1280,
-        "height": 720
+        "height": 720,
+
+        "minWidth": 640,
+        "minHeight": 480
       }
     ],
     "security": {
