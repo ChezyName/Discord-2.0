@@ -37,7 +37,6 @@ const SidePanel = ({setServerIP, setIsConnected ,setInitServerData}: any) => {
       <ServerMenu setSearch={setSearch}/>
         {
           myServers.length > 0 ? (myServers.map((item) => {
-            console.log("Adding: ", item)
             return (<button style={{width: '100%', height: "25px"}} onClick={() => {
               console.log("Connecting to " + item?.serverName + " @ " + item?.serverIP)
               if(setServerIP) setServerIP(item?.serverIP);

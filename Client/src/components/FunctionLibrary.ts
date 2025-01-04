@@ -1,5 +1,5 @@
 import { ServerInformation } from "./SidePanel";
-import { BaseDirectory, create, exists, open } from '@tauri-apps/plugin-fs';
+import { BaseDirectory, create, exists, open, readFile } from '@tauri-apps/plugin-fs';
 
 //THE DEFAULT DATA PORT
 const DEFAULT_DATA_PORT = '3001';
@@ -33,10 +33,20 @@ async function InitServerFile() {
 export async function getServerList(): Promise<string[]> {
     await InitServerFile();
     
-    //Get Files
+    //Get File
+    const decoder = new TextDecoder();
+    
+    const data = await readFile(SERVER_LIST_FILE_NAME, {
+        baseDir: BaseDirectory.AppLocalData,
+    });
 
+    const serverList = decoder.decode(data);
 
-    return ['localhost'];
+    console.log(serverList);
+    
+    let serverArray = serverList.split(',');
+
+    return serverArray;
 }
 
 //Adds to the current array of servers
@@ -45,14 +55,16 @@ export async function addServerToList(address: string) {
     let serverData = await getServerData(address);
     if(serverData != null) {
         let serverArray = await getServerList();
-        serverArray.push(address);
+        if(!serverArray.includes(address)){
+            serverArray.push(address);
 
-        //write to file
-        const encoder = new TextEncoder();
-        const data = encoder.encode(serverArray.toString());
-        const file = await open(SERVER_LIST_FILE_NAME, { write: true, baseDir: BaseDirectory.AppLocalData });
-        const bytesWritten = await file.write(data); // 11
-        await file.close();
+            //write to file
+            const encoder = new TextEncoder();
+            const data = encoder.encode(serverArray.toString());
+            const file = await open(SERVER_LIST_FILE_NAME, { write: true, baseDir: BaseDirectory.AppLocalData });
+            const bytesWritten = await file.write(data);
+            await file.close();
+        }
     }
 }
 

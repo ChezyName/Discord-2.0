@@ -9,9 +9,11 @@
     "core:default",
     "shell:allow-open",
     "fs:default",
-    {
-      "identifier": "fs:scope",
-      "allow": [{ "path": "$APPLOCALDATA/*" }]
-    }
+    "fs:allow-applocaldata-write",
+    "fs:allow-applocaldata-read",
+    "fs:allow-applocaldata-meta",
+    "fs:allow-applocaldata-write-recursive",
+    "fs:allow-applocaldata-read-recursive",
+    "fs:allow-applocaldata-meta-recursive"
   ]
 }

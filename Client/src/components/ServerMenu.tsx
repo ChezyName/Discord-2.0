@@ -45,7 +45,7 @@ const ServerMenu = ({setSearch}:any) => {
 
           {/** Open Modal Window for adding Server via URL / IP */}
           <Button sx={{aspectRatio: "1"}} onClick={() => {setModalOpen(true);}}><AddIcon/></Button>
-          <TextField sx={{marginRight: "2%", marginLeft: "2%"}}
+          <TextField sx={{marginRight: "2%", marginLeft: "2%", height: '80%'}}
             id="server-search" label="Search" type="search" variant='standard'
             onChange={(event) => {
               if(setSearch) setSearch(event.target.value);
