@@ -19,6 +19,7 @@ const SidePanel = ({setServerIP, setIsConnected ,setInitServerData}: any) => {
     let doServerGetData = async (list: string[]) => {
       let myServerList: ServerInformation[] = [];
       for(let i = 0; i < list.length; i++){
+        console.log(list[i]);
         console.log("Getting Data for " + list[i])
         let data: ServerInformation|null = await getServerData(list[i]);
         if(data !== null) myServerList.push(data);
@@ -33,7 +34,7 @@ const SidePanel = ({setServerIP, setIsConnected ,setInitServerData}: any) => {
   }, []);
 
   return (
-    <div style={{width: '30%', height: '100%', backgroundColor: 'green', minWidth: "calc(240px)"}}>
+    <div style={{width: '30%', height: '100%', backgroundColor: 'green', minWidth: "240px"}}>
       <ServerMenu setSearch={setSearch}/>
         {
           myServers.length > 0 ? (myServers.map((item) => {

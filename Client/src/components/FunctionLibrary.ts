@@ -45,6 +45,7 @@ export async function getServerList(): Promise<string[]> {
     console.log(serverList);
     
     let serverArray = serverList.split(',');
+    console.log(serverArray);
 
     return serverArray;
 }
@@ -60,7 +61,7 @@ export async function addServerToList(address: string) {
 
             //write to file
             const encoder = new TextEncoder();
-            const data = encoder.encode(serverArray.toString());
+            const data = encoder.encode(serverArray.join(','));
             const file = await open(SERVER_LIST_FILE_NAME, { write: true, baseDir: BaseDirectory.AppLocalData });
             const bytesWritten = await file.write(data);
             await file.close();
@@ -70,6 +71,8 @@ export async function addServerToList(address: string) {
 
 // Returns Server Data from The Server
 export async function getServerData(Address: string) : Promise<ServerInformation|null> {
+    if(Address == "") return null;
+
     let response = await fetch(getDataServerFromAddress(Address));
     console.log(response);
 
