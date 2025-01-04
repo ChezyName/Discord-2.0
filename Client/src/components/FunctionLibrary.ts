@@ -1,11 +1,13 @@
 import { ServerInformation } from "./SidePanel";
+import { BaseDirectory, create, exists, open } from '@tauri-apps/plugin-fs';
 
 //THE DEFAULT DATA PORT
-const DataPort = '3001';
+const DEFAULT_DATA_PORT = '3001';
+const SERVER_LIST_FILE_NAME = "DISCORD2_SERVERS";
 
 function getDataServerFromAddress(address: string): URL{
     if(!address.includes(":")){
-        address = address + ":" + DataPort;
+        address = address + ":" + DEFAULT_DATA_PORT;
    }
 
     if(!address.includes("http://")){
@@ -15,15 +17,52 @@ function getDataServerFromAddress(address: string): URL{
     return new URL(address);
 }
 
+//If File Does Not Exist, Create
+async function InitServerFile() {
+    const tokenExists = await exists(SERVER_LIST_FILE_NAME, {
+        baseDir: BaseDirectory.AppLocalData,
+    });
+
+    //Create
+    if(!tokenExists){
+        await create(SERVER_LIST_FILE_NAME, { baseDir: BaseDirectory.AppLocalData });
+    }
+}
+
 //Returns List of Severs You Are In
-export function getServerList(): string[] {
-    return ['localhost']
+export async function getServerList(): Promise<string[]> {
+    await InitServerFile();
+    
+    //Get Files
+
+
+    return ['localhost'];
+}
+
+//Adds to the current array of servers
+export async function addServerToList(address: string) {
+    await InitServerFile();
+    let serverData = await getServerData(address);
+    if(serverData != null) {
+        let serverArray = await getServerList();
+        serverArray.push(address);
+
+        //write to file
+        const encoder = new TextEncoder();
+        const data = encoder.encode(serverArray.toString());
+        const file = await open(SERVER_LIST_FILE_NAME, { write: true, baseDir: BaseDirectory.AppLocalData });
+        const bytesWritten = await file.write(data); // 11
+        await file.close();
+    }
 }
 
 // Returns Server Data from The Server
-export async function getServerData(Address: string) : Promise<ServerInformation> {
+export async function getServerData(Address: string) : Promise<ServerInformation|null> {
     let response = await fetch(getDataServerFromAddress(Address));
     console.log(response);
+
+    if(!response.ok) return null;
+
     let json = await response.json();
     
     let newData: ServerInformation = {

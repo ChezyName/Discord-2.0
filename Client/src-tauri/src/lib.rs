@@ -1,15 +1,12 @@
+use audiopus::{coder::Decoder, Application, Bandwidth, Channels, SampleRate};
+use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use cpal::{InputCallbackInfo, OutputCallbackInfo, Stream, StreamConfig};
+use ringbuf::{traits::*, HeapRb};
+use std::io;
+use std::sync::Arc;
 use tauri::{AppHandle, Builder};
 use tokio::sync::{watch, Mutex};
-use std::sync::Arc;
-use std::io;
 use tokio::time::{sleep, Duration};
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{InputCallbackInfo, OutputCallbackInfo, StreamConfig, Stream};
-use audiopus::{coder::Decoder, Application, Channels, SampleRate, Bandwidth};
-use ringbuf::{
-    traits::*,
-    HeapRb,
-};
 
 mod audiodriver;
 
@@ -31,7 +28,7 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
         println!("[LIB] Init Connecting To Server");
 
         let mut driver = driver_state.lock().await;
-        if driver.can_send_audio { 
+        if driver.can_send_audio {
             eprintln!("[LIB] Cannot Send Audio, Another Thread is Already Sending Audio");
             return;
         }
@@ -45,7 +42,6 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
             }
         };
 
-
         let socket = Arc::new(new_socket);
 
         driver.can_send_audio = true;
@@ -56,15 +52,16 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
         let username = driver.user_name.to_owned().clone();
         let full = "username:".to_string() + &username;
         let data = full.as_bytes();
-        
+
         //Sending The User Data
         let temp_socket = Arc::clone(&socket);
         let temp_ip = Arc::clone(&server_ip);
         if let Err(e) = temp_socket.send_to(data, &*temp_ip).await {
             eprintln!("[LIB] Failed to send data: {}", e);
             return; // Exit the loop if sending fails
+        } else {
+            println!("[LIB] Sent User Data to Server")
         }
-        else { println!("[LIB] Sent User Data to Server") }
         drop(temp_socket);
 
         println!("[LIB] Prepairing Audio Loops");
@@ -78,7 +75,7 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
         let audio_sender_ip = Arc::clone(&server_ip);
 
         let mut audio_driver_locked = audio_driver.lock().await;
-        audio_driver_locked.start_audio_capture(audio_sender_socket,audio_sender_ip);
+        audio_driver_locked.start_audio_capture(audio_sender_socket, audio_sender_ip);
         audio_driver_locked.start_audio_player();
         drop(audio_driver_locked);
 
@@ -94,7 +91,6 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
             println!("[LIB] Sending / Receiving Audio Data");
             loop {
                 {
-    
                     let mut driver = loop_driver1.lock().await;
                     if !driver.can_send_audio {
                         driver.is_connected = false;
@@ -110,11 +106,16 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
                         drop(audio_driver_temp);
 
                         //Send Server Disconnect Information
-                        if let Err(e) = disconnect_socket.send_to("disconnect".to_string().as_bytes(), &*disconnect_ip).await {
-                            eprintln!("[LIB] Failed to send data: {}\nClosed heartbeat sub-task", e);
+                        if let Err(e) = disconnect_socket
+                            .send_to("disconnect".to_string().as_bytes(), &*disconnect_ip)
+                            .await
+                        {
+                            eprintln!(
+                                "[LIB] Failed to send data: {}\nClosed heartbeat sub-task",
+                                e
+                            );
                             return; // Exit the loop if sending fails
-                        }
-                        else {
+                        } else {
                             println!("[LIB] Sent Heartbeat...");
                         }
 
@@ -127,7 +128,7 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
                 }
             }
         });
-        
+
         //Audio Recieve Loop
         let mut audio_rx = reciever.clone();
         let data_recieve_socket = Arc::clone(&socket);
@@ -137,7 +138,7 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
             tokio::select! {
                 _ = async {
                     let mut temp_decoder = Decoder::new(SampleRate::Hz48000, Channels::Stereo);
-            
+
                     match temp_decoder {
                         Ok(mut decoder) => {
                             loop {
@@ -240,10 +241,15 @@ pub fn run() {
         server_ip: "127.0.0.1:3000".to_string(),
         user_name: "Username Not Set".to_string(),
     }));
-    
+
     tauri::Builder::default()
+        .plugin(tauri_plugin_fs::init())
         .manage(driver)
-        .invoke_handler(tauri::generate_handler![stop_audio_loop,start_audio_loop,set_server_ip])
+        .invoke_handler(tauri::generate_handler![
+            stop_audio_loop,
+            start_audio_loop,
+            set_server_ip
+        ])
         //.invoke_handler(tauri::generate_handler![stop_audio_loop])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

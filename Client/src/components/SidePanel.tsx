@@ -20,14 +20,14 @@ const SidePanel = ({setServerIP, setIsConnected ,setInitServerData}: any) => {
       let myServerList: ServerInformation[] = [];
       for(let i = 0; i < list.length; i++){
         console.log("Getting Data for " + list[i])
-        let data: ServerInformation = await getServerData(list[i]);
-        myServerList.push(data);
+        let data: ServerInformation|null = await getServerData(list[i]);
+        if(data !== null) myServerList.push(data);
       }
 
       setMyServers(myServerList);
     }
 
-    let interval = setInterval(() => {doServerGetData(getServerList());}, SERVER_SEARCH_INTERVAL);
+    let interval = setInterval(async () => {let d = await getServerList(); doServerGetData(d);}, SERVER_SEARCH_INTERVAL);
 
     return () => clearInterval(interval);
   }, []);
