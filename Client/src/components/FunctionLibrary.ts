@@ -70,6 +70,26 @@ export async function addServerToList(address: string) {
     }
 }
 
+//Remove
+export async function removeFromServerList(address: string) {
+    await InitServerFile();
+    let addressFixed = address.replace("http://","").replace("https://","");
+    let serverData = await getServerData(addressFixed);
+    if(serverData != null) {
+        let serverArray = await getServerList();
+        if(serverArray.includes(address)){
+            serverArray.splice(serverArray.indexOf(address), 1);
+
+            //write to file
+            const encoder = new TextEncoder();
+            const data = encoder.encode(serverArray.join(','));
+            const file = await open(SERVER_LIST_FILE_NAME, { write: true, baseDir: BaseDirectory.AppLocalData });
+            await file.write(data);
+            await file.close();
+        }
+    }
+}
+
 // Returns Server Data from The Server
 export async function getServerData(Address: string) : Promise<ServerInformation|null> {
     if(Address == "") return null;

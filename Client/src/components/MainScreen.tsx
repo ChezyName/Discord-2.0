@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import SidePanel, { ServerInformation } from "./SidePanel";
 import { getServerData } from './FunctionLibrary';
+import Messages from './Messages';
 
 const MainScreen = () => {
   const [isConnected, setIsConnected] = useState(false);
@@ -48,7 +49,7 @@ const MainScreen = () => {
           : "" }
         </div>
         <div style={{marginTop: '8px', width: "100%", height: "100%"}}>
-          MESSAGE WINDOW
+          <Messages />
         </div>
       </div>
     </div>
