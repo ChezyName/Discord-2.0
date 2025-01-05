@@ -1,5 +1,5 @@
 import { ServerInformation } from "./SidePanel";
-import { BaseDirectory, create, exists, open, readFile } from '@tauri-apps/plugin-fs';
+import { BaseDirectory, create, exists, writeFile, readFile } from '@tauri-apps/plugin-fs';
 
 //THE DEFAULT DATA PORT
 const DEFAULT_DATA_PORT = '3001';
@@ -41,11 +41,8 @@ export async function getServerList(): Promise<string[]> {
     });
 
     const serverList = decoder.decode(data);
-
-    console.log(serverList);
     
     let serverArray = serverList.split(',');
-    console.log(serverArray);
 
     return serverArray;
 }
@@ -63,9 +60,9 @@ export async function addServerToList(address: string) {
             //write to file
             const encoder = new TextEncoder();
             const data = encoder.encode(serverArray.join(','));
-            const file = await open(SERVER_LIST_FILE_NAME, { write: true, baseDir: BaseDirectory.AppLocalData });
-            await file.write(data);
-            await file.close();
+            await writeFile(SERVER_LIST_FILE_NAME, data, {
+                baseDir: BaseDirectory.AppLocalData,
+            });
         }
     }
 }
@@ -73,21 +70,21 @@ export async function addServerToList(address: string) {
 //Remove
 export async function removeFromServerList(address: string) {
     await InitServerFile();
-    let addressFixed = address.replace("http://","").replace("https://","");
-    let serverData = await getServerData(addressFixed);
-    if(serverData != null) {
-        let serverArray = await getServerList();
-        if(serverArray.includes(address)){
-            serverArray.splice(serverArray.indexOf(address), 1);
+    console.log("Attempt to Remove: ", address)
+    let serverArray = await getServerList();
 
-            //write to file
-            const encoder = new TextEncoder();
-            const data = encoder.encode(serverArray.join(','));
-            const file = await open(SERVER_LIST_FILE_NAME, { write: true, baseDir: BaseDirectory.AppLocalData });
-            await file.write(data);
-            await file.close();
-        }
+    if(serverArray.includes(address)){
+        console.log("Removing: ", address, serverArray)
+        serverArray.splice(serverArray.indexOf(address), 1);
+
+        //write to file
+        const encoder = new TextEncoder();
+        const data = encoder.encode(serverArray.join(','));
+        await writeFile(SERVER_LIST_FILE_NAME, data, {
+            baseDir: BaseDirectory.AppLocalData,
+        });
     }
+    else { console.log("Server Removal Incomplete - 404 Server Not Found"); }
 }
 
 // Returns Server Data from The Server
