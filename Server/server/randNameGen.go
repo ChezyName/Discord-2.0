@@ -7,11 +7,19 @@ import (
 
 // Declare global variables using 'var'
 var ServerNameA = []string{
-	"flaming", "mysterious", "bizarre", "shiny", "silent", "brave", "ancient", "savage", "glistening", "majestic",
+	"Blazing", "Majestic", "Silent", "Mysterious", "Fierce", "Glowing", "Ancient", "Savage", "Charming", "Fearless",
+	"Graceful", "Luminous", "Eerie", "Wild", "Mystic", "Vibrant", "Unyielding", "Benevolent", "Dazzling", "Arcane",
+	"Swift", "Glacial", "Invincible", "Harmonic", "Enduring", "Solemn", "Radiating", "Gallant", "Blissful", "Resolute",
+	"Steadfast", "Thundering", "Ethereal", "Seraphic", "Dynamic", "Whispering", "Enchanting", "Resilient", "Formidable", "Transcendent",
+	"Regal", "Dominant", "Sublime", "Spectral", "Shimmering", "Roaring", "Merciful", "Ruthless", "Elegant", "Timeless",
 }
 
 var ServerNameB = []string{
-	"mango", "mountain", "wizard", "ocean", "forest", "cloud", "phoenix", "dragon", "star", "crystal",
+	"Phoenix", "Dragon", "Crystal", "Mountain", "Forest", "Cloud", "River", "Ember", "Storm", "Flame",
+	"Haven", "Galaxy", "Beacon", "Citadel", "Throne", "Crown", "Legion", "Guardian", "Temple", "Horizon",
+	"Sentinel", "Rift", "Eclipse", "Comet", "Sapphire", "Obelisk", "Titan", "Griffin", "Sanctuary", "Harbinger",
+	"Oracle", "Canyon", "Phantom", "Echo", "Warden", "Pinnacle", "Spire", "Nebula", "Voyager", "Frost",
+	"Chimera", "Basilisk", "Inferno", "Meadow", "Valley", "Star", "Sphere", "Blizzard", "Serpent", "Tundra",
 }
 
 func init() {

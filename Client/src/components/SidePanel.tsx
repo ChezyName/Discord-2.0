@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getServerData, getServerList } from './FunctionLibrary';
 import ServerMenu from './ServerMenu';
+import { Typography } from '@mui/material';
 
 const SERVER_SEARCH_INTERVAL = 500;
 
@@ -38,12 +39,17 @@ const SidePanel = ({setServerIP, setIsConnected ,setInitServerData}: any) => {
       <ServerMenu setSearch={setSearch}/>
         {
           myServers.length > 0 ? (myServers.map((item) => {
-            return (<button style={{width: '100%', height: "25px"}} onClick={() => {
+            if(!item.serverName.includes(search)) return "";
+            return (<button className='serverJoinButton' style={{width: 'calc(100% - 10px)', height: "4.5em", marginBottom: "8px",
+              marginLeft: "5px", marginRight: "5px", borderRadius: "4px", border: "2px solid black", display: 'flex', flexDirection: "column"}} onClick={() => {
               console.log("Connecting to " + item?.serverName + " @ " + item?.serverIP)
               if(setServerIP) setServerIP(item?.serverIP);
               if(setIsConnected) setIsConnected(true);
               if(setInitServerData) setInitServerData(item);
-            }}>{item?.serverName}</button>)
+            }}>
+              <Typography sx={{textAlign: "left", fontSize: "1.5em", fontWeight: "bold"}}>{item?.serverName}</Typography>
+              <Typography sx={{textAlign: "left", fontSize: "1em", fontStyle: "italic"}}>{item?.serverIP}</Typography>
+            </button>)
           })) : ""
         }
     </div>

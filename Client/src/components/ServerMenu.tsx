@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Button, TextField, Modal, Box, Typography } from "@mui/material"
 import { addServerToList, getServerData } from './FunctionLibrary';
 
@@ -40,8 +40,8 @@ const ServerMenu = ({setSearch}:any) => {
 
   return (
     <>
-      <div style={{backgroundColor: "transparent", width: "calc(100% - 4px)", height: "5%", marginBottom: "2%", minHeight: "40px",
-        display: 'flex', flexDirection: "row", margin: "4px"}}>
+      <div style={{backgroundColor: "", width: "calc(100% - 4px)", height: "5%", marginBottom: "2%", minHeight: "40px",
+        display: 'flex', flexDirection: "row", padding: "4px", borderBottom: "2px solid black"}}>
 
           {/** Open Modal Window for adding Server via URL / IP */}
           <Button sx={{aspectRatio: "1", borderRadius: "4px", border: "1px solid black"}} onClick={() => {setModalOpen(true);}}><AddIcon/></Button>

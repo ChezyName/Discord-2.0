@@ -53,7 +53,8 @@ export async function getServerList(): Promise<string[]> {
 //Adds to the current array of servers
 export async function addServerToList(address: string) {
     await InitServerFile();
-    let serverData = await getServerData(address);
+    let addressFixed = address.replace("http://","").replace("https://","");
+    let serverData = await getServerData(addressFixed);
     if(serverData != null) {
         let serverArray = await getServerList();
         if(!serverArray.includes(address)){
@@ -63,7 +64,7 @@ export async function addServerToList(address: string) {
             const encoder = new TextEncoder();
             const data = encoder.encode(serverArray.join(','));
             const file = await open(SERVER_LIST_FILE_NAME, { write: true, baseDir: BaseDirectory.AppLocalData });
-            const bytesWritten = await file.write(data);
+            await file.write(data);
             await file.close();
         }
     }

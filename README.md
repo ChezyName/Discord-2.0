@@ -26,3 +26,12 @@ Audio goes from the following:
 
 - cmake
 - ASIO
+
+
+# Running The Server
+> Currently the Data Server runs on port `3001` and the UDP voice server runs on port `3000`, meaning that you need to open these ports.
+
+To run the server, just simply execute the executable or using source code run `go run .` or `go run main.go`.
+
+to change the name just attach `-name=YOUR_NAME_HERE`, for example `-name=DiscordTwoo`
+to debug the server, just attach `-debug=true`
