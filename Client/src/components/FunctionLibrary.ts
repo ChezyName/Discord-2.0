@@ -20,11 +20,7 @@ function getDataServerFromAddress(address: string): URL{
 }
 
 export function getMessageGatewayFromAddress(address: string): URL {
-    if(address == "") return new URL("");
-
-    let base = getDataServerFromAddress(address);
-    let newURL = base.href + "messages/";
-    return new URL(newURL);
+    return getDataServerFromAddress(address);
 }
 
 //If File Does Not Exist, Create

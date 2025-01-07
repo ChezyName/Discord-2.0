@@ -4,9 +4,24 @@ import DefaultEventsMap from 'socket.io-client'
 import { getMessageGatewayFromAddress } from './FunctionLibrary';
 
 const Messages = ({isConnected, serverIP}: any) => {
-  let socket = io('http://localhost:3001');
+  let socket = useRef(io('http://localhost:3001', {autoConnect: false}));
 
-  socket.on("debug", (data) => {
+  useEffect(() => {
+    if(isConnected) {
+      if(socket.current && socket.current.connected) socket.current.disconnect();
+
+      console.log("[MSG] Joining Server @ " + getMessageGatewayFromAddress(serverIP).href)
+      socket.current = io(getMessageGatewayFromAddress(serverIP).href, {autoConnect: false});
+      socket.current.connect();
+    }
+    else {
+      //disconnect socket
+      if(socket.current && socket.current.connected) socket.current.disconnect();
+      console.log("[MSG] Disconnecting Server - IsConnected?:" + socket.current.connected)
+    }
+  }, [isConnected])
+
+  socket.current.on("debug", (data) => {
     console.log("Socket Returned: ", data);
   })
 
