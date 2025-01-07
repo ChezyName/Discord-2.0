@@ -1,8 +1,10 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
 
+	"github.com/zishang520/engine.io/v2/types"
 	"github.com/zishang520/socket.io/v2/socket"
 )
 
@@ -16,14 +18,26 @@ import (
  */
 
 func launchMessageGateway() *socket.Server {
-	io := socket.NewServer(nil, nil)
-	http.Handle("/messages/", io.ServeHandler(nil))
+	options := socket.DefaultServerOptions()
+	options.ServerOptions.SetCors(&types.Cors{
+		Origin: "*",
+	})
+
+	io := socket.NewServer(nil, options)
+
+	http.Handle("/socket.io/", io.ServeHandler(nil))
 
 	io.On("connection", func(clients ...any) {
 		client := clients[0].(*socket.Socket)
-		client.On("event", func(datas ...any) {
+
+		fmt.Println("Client Joined: " + client.Handshake().Address)
+
+		client.On("debug", func(datas ...any) {
+			client.Emit("debug", "Data")
 		})
+
 		client.On("disconnect", func(...any) {
+			fmt.Println("Client Disconnected....")
 		})
 	})
 

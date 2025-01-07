@@ -20,7 +20,8 @@
     "@tauri-apps/plugin-shell": "^2.2.0",
     "discord2": "file:",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "socket.io-client": "^4.8.1"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.1.0",

@@ -6,6 +6,8 @@ const DEFAULT_DATA_PORT = '3001';
 const SERVER_LIST_FILE_NAME = "DISCORD2_SERVERS";
 
 function getDataServerFromAddress(address: string): URL{
+    if(address == "") return new URL("");
+
     if(!address.includes(":")){
         address = address + ":" + DEFAULT_DATA_PORT;
    }
@@ -15,6 +17,14 @@ function getDataServerFromAddress(address: string): URL{
     }
 
     return new URL(address);
+}
+
+export function getMessageGatewayFromAddress(address: string): URL {
+    if(address == "") return new URL("");
+
+    let base = getDataServerFromAddress(address);
+    let newURL = base.href + "messages/";
+    return new URL(newURL);
 }
 
 //If File Does Not Exist, Create
@@ -31,6 +41,7 @@ async function InitServerFile() {
 
 //Returns List of Severs You Are In
 export async function getServerList(): Promise<string[]> {
+    return ['localhost']
     await InitServerFile();
     
     //Get File

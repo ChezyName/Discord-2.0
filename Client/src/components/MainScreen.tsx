@@ -49,7 +49,7 @@ const MainScreen = () => {
           : "" }
         </div>
         <div style={{marginTop: '8px', width: "100%", height: "100%"}}>
-          <Messages />
+          <Messages isConnected={isConnected} serverIP={serverIP}/>
         </div>
       </div>
     </div>
