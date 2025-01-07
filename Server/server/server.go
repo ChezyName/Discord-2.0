@@ -243,6 +243,7 @@ func HostBothServers(server *Server, isDebug bool) {
 		fmt.Println("	- Additionally, Server is running in DEBUG MODE")
 	}
 
+	go launchMessageGateway()
 	go HostDataServer(server)
 	go HostVoiceServer(server)
 	go UserListClearer(5, server)
