@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core'
 import SidePanel, { ServerInformation } from "./SidePanel";
 import { getServerData } from './FunctionLibrary';
 import Messages from './Messages';
+import { Typography } from '@mui/material';
 
 const MainScreen = () => {
   const [isConnected, setIsConnected] = useState(false);
@@ -38,9 +39,10 @@ const MainScreen = () => {
 
       <div style={{backgroundColor: '#222', color: '#FFF', width: '100%', borderLeft: '5px solid black',
         display: 'flex', flexDirection: 'column'}}>
-        <div style={{width: '100%', height: '5%', minHeight: "40px", borderBottom: '5px solid black',
+
+        <div style={{width: '100%', height: '60px', borderBottom: '5px solid black',
           display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-          {serverData?.serverName}
+          <Typography sx={{marginLeft: "8px"}} variant='h4'>{serverData?.serverName}</Typography>
           { isConnected ? <button onClick={() => {
             setIsConnected(false)
             setServerData(null);
@@ -48,9 +50,11 @@ const MainScreen = () => {
           }} style={{width: "auto", height: "100%", marginLeft: "auto"}}>Disconnect</button>
           : "" }
         </div>
-        <div style={{marginTop: '0px', width: "100%", height: "100%"}}>
-          <Messages isConnected={isConnected} serverIP={serverIP}/>
+
+        <div style={{marginTop: '0px', width: "100%", height: "calc(100% - 65px)"}}>
+          <Messages isConnected={isConnected} serverIP={serverIP} serverName={serverData?.serverName}/>
         </div>
+
       </div>
     </div>
   )
