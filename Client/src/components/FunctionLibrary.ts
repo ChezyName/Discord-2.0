@@ -113,3 +113,7 @@ export async function getServerData(Address: string) : Promise<ServerInformation
 
     return newData;
 }
+
+export async function getDisplayName(): Promise<string> {
+    return "DEBUG_Name";
+}
