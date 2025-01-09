@@ -20,7 +20,7 @@ import (
 type Message struct {
 	Message     string `json:"message"`
 	DisplayName string `json:"user"`
-	TimeStamp   int64  `json:"LastConnected"`
+	TimeStamp   int64  `json:"TimeStamp"`
 }
 
 type Connection struct {
@@ -30,14 +30,19 @@ type Connection struct {
 
 func getAllMessages() []Message {
 	return []Message{
-		{Message: "First", DisplayName: "ChezyName", TimeStamp: 1},
-		{Message: "2nd", DisplayName: "Name of Cheese", TimeStamp: 3},
-		{Message: "3rd", DisplayName: "ChezyName", TimeStamp: 12},
-		{Message: "4th", DisplayName: "Name of Cheese", TimeStamp: 25},
-		{Message: "First", DisplayName: "ChezyName", TimeStamp: 125},
-		{Message: "2nd", DisplayName: "Name of Cheese", TimeStamp: 335},
-		{Message: "3rd", DisplayName: "ChezyName", TimeStamp: 1253},
-		{Message: "4th", DisplayName: "Name of Cheese", TimeStamp: 25123},
+		{Message: "Hello", DisplayName: "ChezyName", TimeStamp: 1},
+		{Message: "Hey", DisplayName: "Name of Cheese", TimeStamp: 2},
+		{Message: "So, you gon tell me about why you be doin it?", DisplayName: "ChezyName", TimeStamp: 3},
+		{Message: "???", DisplayName: "Name of Cheese", TimeStamp: 4},
+		{Message: "I saw you dawg", DisplayName: "ChezyName", TimeStamp: 5},
+		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 6},
+		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 7},
+		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 8},
+		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 9},
+		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 10},
+		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 11},
+		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 12},
+		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 13},
 	}
 }
 

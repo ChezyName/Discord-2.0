@@ -27,6 +27,11 @@ const Messages = ({isConnected, serverIP}: any) => {
         // When the socket is loaded, create the return functions for all the data given
       
         socket.current.on("init", (initMessageData) => {
+          //sort current messages
+          initMessageData.sort((a:any,b:any) => {
+            return a['TimeStamp'] - b['TimeStamp'];
+          })
+
           //load the current messages
           console.log("[MSG] Loading Init Messages:", initMessageData);
           setMessage(initMessageData);
@@ -63,8 +68,8 @@ const Messages = ({isConnected, serverIP}: any) => {
       gap: '16px'
     }}>
       {
-        messages.map((msg) => {
-          return <SingleMessage />
+        messages.map((msg: any) => {
+          return <SingleMessage displayName={msg.user} message={msg.message}/>
         })
       }
     </div>
