@@ -34,6 +34,10 @@ func getAllMessages() []Message {
 		{Message: "2nd", DisplayName: "Name of Cheese", TimeStamp: 3},
 		{Message: "3rd", DisplayName: "ChezyName", TimeStamp: 12},
 		{Message: "4th", DisplayName: "Name of Cheese", TimeStamp: 25},
+		{Message: "First", DisplayName: "ChezyName", TimeStamp: 125},
+		{Message: "2nd", DisplayName: "Name of Cheese", TimeStamp: 335},
+		{Message: "3rd", DisplayName: "ChezyName", TimeStamp: 1253},
+		{Message: "4th", DisplayName: "Name of Cheese", TimeStamp: 25123},
 	}
 }
 
