@@ -7,7 +7,8 @@ A Full Recreation of Discord
 - ~~Opus Audio Sending~~
 - ~~Opus Audio Decoding~~
 - ~~Audio Playing~~
-- Text Messages
+- ~~Text Messages~~
+- Auto Server Removal Upon Sever Offline (Server Checker)
 - **DO NOT** Send Audio When Silent
     - Voice Detection
     - Global Push-to-Talk

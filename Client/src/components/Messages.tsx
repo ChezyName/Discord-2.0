@@ -118,11 +118,14 @@ const Messages = ({isConnected, serverIP, serverName}: any) => {
     <div style={{display: 'flex', flexDirection: 'column', width: "100%", height: "100%"}}>
       <div ref={messageWindow} style={{backgroundColor: "transparent", width: "100%", height: "calc(100% - 65px)",
         overflowY: "auto", margin: "0", padding: "0", display: "flex", flexDirection: "column",
-        gap: '16px'
+        gap: '8px'
       }}>
         {
-          messages.map((msg: any) => {
-            return <SingleMessage displayName={msg.user} message={msg.message}/>
+          messages.map((msg: any, index: number, msgArray: any[]) => {
+            return <SingleMessage
+              displayName={msg.user} message={msg.message}
+              isSameAsLast={index > 1 && msgArray[index - 1].user === msg.user}
+            />
           })
         }
         <div ref={messageBottom} />
