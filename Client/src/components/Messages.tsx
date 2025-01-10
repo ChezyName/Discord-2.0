@@ -124,7 +124,7 @@ const Messages = ({isConnected, serverIP, serverName}: any) => {
           messages.map((msg: any, index: number, msgArray: any[]) => {
             return <SingleMessage
               displayName={msg.user} message={msg.message}
-              isSameAsLast={index > 1 && msgArray[index - 1].user === msg.user}
+              isSameAsLast={index > 0 && msgArray[index - 1].user === msg.user}
             />
           })
         }
