@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/zishang520/engine.io/v2/types"
 	"github.com/zishang520/socket.io/v2/socket"
@@ -28,127 +29,129 @@ type Connection struct {
 	DisplayName string
 }
 
+var Messages = []Message{
+	{Message: "Hello", DisplayName: "ChezyName", TimeStamp: 1},
+	{Message: "Hey", DisplayName: "Name of Cheese", TimeStamp: 2},
+	{Message: "So, you gon tell me about why you be doin it?", DisplayName: "ChezyName", TimeStamp: 3},
+	{Message: "???", DisplayName: "Name of Cheese", TimeStamp: 4},
+	{Message: "I saw you dawg", DisplayName: "ChezyName", TimeStamp: 5},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 6},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 7},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 8},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 9},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 10},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 11},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 12},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 13},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 14},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 15},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 16},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 17},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 18},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 19},
+
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 20},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 21},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 22},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 23},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 24},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 25},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 26},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 27},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 28},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 29},
+
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 30},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 31},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 32},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 33},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 34},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 35},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 36},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 37},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 38},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 39},
+
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 30},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 31},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 32},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 33},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 34},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 35},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 36},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 37},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 38},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 39},
+
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 30},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 31},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 32},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 33},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 34},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 35},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 36},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 37},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 38},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 39},
+
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 30},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 31},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 32},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 33},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 34},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 35},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 36},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 37},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 38},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 39},
+
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 30},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 31},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 32},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 33},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 34},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 35},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 36},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 37},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 38},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 39},
+
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 30},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 31},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 32},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 33},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 34},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 35},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 36},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 37},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 38},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 39},
+
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 30},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 31},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 32},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 33},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 34},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 35},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 36},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 37},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 38},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 39},
+
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 30},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 31},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 32},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 33},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 34},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 35},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 36},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 37},
+	{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 38},
+	{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 39},
+}
+
 func getAllMessages() []Message {
-	return []Message{
-		{Message: "Hello", DisplayName: "ChezyName", TimeStamp: 1},
-		{Message: "Hey", DisplayName: "Name of Cheese", TimeStamp: 2},
-		{Message: "So, you gon tell me about why you be doin it?", DisplayName: "ChezyName", TimeStamp: 3},
-		{Message: "???", DisplayName: "Name of Cheese", TimeStamp: 4},
-		{Message: "I saw you dawg", DisplayName: "ChezyName", TimeStamp: 5},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 6},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 7},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 8},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 9},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 10},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 11},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 12},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 13},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 14},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 15},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 16},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 17},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 18},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 19},
-
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 20},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 21},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 22},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 23},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 24},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 25},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 26},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 27},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 28},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 29},
-
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 30},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 31},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 32},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 33},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 34},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 35},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 36},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 37},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 38},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 39},
-
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 30},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 31},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 32},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 33},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 34},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 35},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 36},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 37},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 38},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 39},
-
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 30},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 31},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 32},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 33},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 34},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 35},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 36},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 37},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 38},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 39},
-
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 30},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 31},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 32},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 33},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 34},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 35},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 36},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 37},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 38},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 39},
-
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 30},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 31},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 32},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 33},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 34},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 35},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 36},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 37},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 38},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 39},
-
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 30},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 31},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 32},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 33},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 34},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 35},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 36},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 37},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 38},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 39},
-
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 30},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 31},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 32},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 33},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 34},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 35},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 36},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 37},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 38},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 39},
-
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 30},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 31},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 32},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 33},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 34},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 35},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 36},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 37},
-		{Message: "naw", DisplayName: "Name of Cheese", TimeStamp: 38},
-		{Message: "yuh", DisplayName: "ChezyName", TimeStamp: 39},
-	}
+	return Messages
 }
 
 var MessageUsers []Connection
@@ -179,17 +182,17 @@ func launchMessageGateway(server *Server) *socket.Server {
 		//init function is when the user handshakes and is preped
 		client.On("init", func(data ...any) {
 			if len(data) <= 0 {
-				fmt.Println("Client Not Allowed: " + client.Handshake().Address + " Used Invalid Display Name on Init")
+				fmt.Println("[MSG SERVER] Client Not Allowed: " + client.Handshake().Address + " Used Invalid Display Name on Init")
 				return
 			}
 
 			displayName, ok := data[0].(string)
 
 			if !ok {
-				fmt.Println("Client Not Allowed: " + client.Handshake().Address + " Used Invalid Display Name on Init")
+				fmt.Println("[MSG SERVER] Client Not Allowed: " + client.Handshake().Address + " Used Invalid Display Name on Init")
 				return
 			} else {
-				fmt.Println("Client Joined: " + client.Handshake().Address + " // " + displayName)
+				fmt.Println("[MSG SERVER] Client Joined: " + client.Handshake().Address + " // " + displayName)
 
 				//search for IP if already is inside list
 				index := FindConnectionByIP(client.Handshake().Address)
@@ -210,9 +213,40 @@ func launchMessageGateway(server *Server) *socket.Server {
 			}
 		})
 
+		client.On("msg", func(data ...any) {
+			if len(data) <= 0 {
+				fmt.Println("[MSG SERVER] Client Not Allowed: " + client.Handshake().Address + " Send Invalid Message")
+				return
+			}
+
+			msg, ok := data[0].(string)
+			if !ok {
+				fmt.Println("[MSG SERVER] Client Not Allowed: " + client.Handshake().Address + " Send Invalid Message")
+				return
+			} else {
+				index := FindConnectionByIP(client.Handshake().Address)
+				if index == -1 {
+					//cannot send messages if not connected
+					fmt.Println("[MSG SERVER] Client Not Allowed: " + client.Handshake().Address + " Not Connected but Sending Messages")
+					return
+				}
+
+				displayName := MessageUsers[index].DisplayName
+
+				//append to message list
+				Messages = append(Messages, Message{
+					Message:     msg,
+					DisplayName: displayName,
+					TimeStamp:   time.Now().Unix(),
+				})
+
+				fmt.Println("[MSG SERVER] New Message from " + displayName + ".")
+			}
+		})
+
 		//when user leaves the (by choice or disconnected via internet issues)
 		client.On("disconnect", func(...any) {
-			fmt.Println("Client Disconnected....")
+			fmt.Println("[MSG SERVER] Client Disconnected from Message Server")
 		})
 	})
 

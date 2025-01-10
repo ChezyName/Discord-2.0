@@ -117,3 +117,15 @@ export async function getServerData(Address: string) : Promise<ServerInformation
 export async function getDisplayName(): Promise<string> {
     return "DEBUG_Name";
 }
+
+/**
+ * given parent and item (child), returns true or false based on if item is scroll on exactly its position
+ * or when .scrollIntoView({ behavior: "instant" }) is used
+ * 
+ * @param parent parent of item
+ * @param item item itself
+ */
+export function isScrolledOnElement(item: HTMLDivElement | null): boolean {
+    if(item == null) return false
+    return item.getBoundingClientRect().bottom <= window.innerHeight
+}
