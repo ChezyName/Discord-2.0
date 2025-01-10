@@ -4,13 +4,19 @@ import { getDisplayName, getMessageGatewayFromAddress, isScrolledOnElement } fro
 import SingleMessage from './SingleMessage';
 import { TextField } from '@mui/material';
 
+type MessageType = {
+  message: string;
+  user: string;
+  TimeStamp: number;
+}
+
 const Messages = ({isConnected, serverIP, serverName}: any) => {
   let socket = useRef(io('http://localhost:3001', {autoConnect: false}));
   
   const messageBottom = useRef<HTMLDivElement>(null);
   const messageWindow = useRef<HTMLDivElement>(null);
 
-  const [messages,setMessages] = useState([]);
+  const [messages,setMessages] = useState<MessageType[]>([]);
   const [currentMessage,setMessage] = useState('');
   const [scrollToBottom, setScrollToBottom] = useState(false);
 
@@ -44,20 +50,38 @@ const Messages = ({isConnected, serverIP, serverName}: any) => {
 
         //==============================================================================
         // When the socket is loaded, create the return functions for all the data given
-      
-        socket.current.on("init", (initMessageData) => {
+
+        let loadInitMessages = (initMessageData:any) => {
           //sort current messages
           initMessageData.sort((a:any,b:any) => {
             return a['TimeStamp'] - b['TimeStamp'];
           })
 
           //load the current messages
-          console.log("[MSG] Loading Init Messages:", initMessageData);
+          console.log("[MSG] Loading Init Messages:", initMessageData, initMessageData.length);
           setMessages(initMessageData);
-        })
+        }
       
-        socket.current.on("message", (newMesasge) => {
+        socket.current.on("init", loadInitMessages)
+        socket.current.on("msg-reload", loadInitMessages)
+      
+        socket.current.on("msg", (newMesasge) => {
           //load the new Message
+          console.log("[MSG] new Message", newMesasge);
+          let count = newMesasge['MessageCount']
+          let msg = newMesasge['Message']
+
+          let messageCount = messageWindow.current?.children.length || 0;
+
+          console.log("[MSG] My Count vs Thiers", messageCount, count);
+
+          if(messageCount == count) {
+            setMessages(oldArray => [...oldArray, msg]);
+          }
+          else {
+            //load all message because we lost them
+            socket.current.emit("msg-reload");
+          }
         })
       }
 

@@ -29,6 +29,11 @@ type Connection struct {
 	DisplayName string
 }
 
+type MessageReturn struct {
+	Message      Message
+	MessageCount int
+}
+
 var Messages = []Message{
 	{Message: "Hello", DisplayName: "ChezyName", TimeStamp: 1},
 	{Message: "Hey", DisplayName: "Name of Cheese", TimeStamp: 2},
@@ -213,6 +218,11 @@ func launchMessageGateway(server *Server) *socket.Server {
 			}
 		})
 
+		//Reloading Messages Since User's Message Count is Invalid
+		client.On("msg-reload", func(data ...any) {
+			client.Emit("msg-reload", getAllMessages())
+		})
+
 		client.On("msg", func(data ...any) {
 			if len(data) <= 0 {
 				fmt.Println("[MSG SERVER] Client Not Allowed: " + client.Handshake().Address + " Send Invalid Message")
@@ -241,6 +251,15 @@ func launchMessageGateway(server *Server) *socket.Server {
 				})
 
 				fmt.Println("[MSG SERVER] New Message from " + displayName + ".")
+
+				io.Emit("msg", MessageReturn{
+					MessageCount: len(Messages),
+					Message: Message{
+						Message:     msg,
+						DisplayName: displayName,
+						TimeStamp:   time.Now().Unix(),
+					},
+				})
 			}
 		})
 
