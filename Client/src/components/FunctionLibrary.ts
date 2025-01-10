@@ -2,15 +2,11 @@ import { ServerInformation } from "./SidePanel";
 import { BaseDirectory, create, exists, writeFile, readFile } from '@tauri-apps/plugin-fs';
 
 //THE DEFAULT DATA PORT
-const DEFAULT_DATA_PORT = '3001';
+const DEFAULT_DATA_PORT = '3000';
 const SERVER_LIST_FILE_NAME = "DISCORD2_SERVERS";
 
 function getDataServerFromAddress(address: string): URL{
     if(address == "") return new URL("");
-
-    if(!address.includes(":")){
-        address = address + ":" + DEFAULT_DATA_PORT;
-   }
 
     if(!address.includes("http://")){
         address = "http://" + address;
@@ -20,7 +16,7 @@ function getDataServerFromAddress(address: string): URL{
 }
 
 export function getMessageGatewayFromAddress(address: string): URL {
-    return getDataServerFromAddress(address);
+    return new URL(address) //getDataServerFromAddress(address);
 }
 
 //If File Does Not Exist, Create
@@ -37,7 +33,6 @@ async function InitServerFile() {
 
 //Returns List of Severs You Are In
 export async function getServerList(): Promise<string[]> {
-    return ['localhost']
     await InitServerFile();
     
     //Get File

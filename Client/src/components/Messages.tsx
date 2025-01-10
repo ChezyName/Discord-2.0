@@ -11,7 +11,7 @@ type MessageType = {
 }
 
 const Messages = ({isConnected, serverIP, serverName}: any) => {
-  let socket = useRef(io('http://localhost:3001', {autoConnect: false}));
+  let socket = useRef(io('', {autoConnect: false}));
   
   const messageBottom = useRef<HTMLDivElement>(null);
   const messageWindow = useRef<HTMLDivElement>(null);
@@ -105,7 +105,7 @@ const Messages = ({isConnected, serverIP, serverName}: any) => {
         console.log("[MSG] Socket Disconnected by useEffect Return Statement.")
       }
     }
-  }, [isConnected])
+  }, [serverIP, isConnected])
 
   function sendMessage() {
     if(socket.current) {

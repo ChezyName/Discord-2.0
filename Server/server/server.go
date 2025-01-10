@@ -18,8 +18,8 @@ type VoiceConnection struct {
 }
 
 type ServerData struct {
-	ServerName string            `json:"server_name"`
-	Users      []VoiceConnection `json:"users"`
+	ServerName string   `json:"server_name"`
+	Users      []string `json:"users"`
 }
 
 type Server struct {
@@ -33,16 +33,17 @@ type Server struct {
 var server Server
 var debugMode = false
 
-var debugPortVoice = "3000"
-var debugPortData = "3001"
+const DefaultPort = "3000"
 
-func CreateServerRandomName() *Server {
-	server = Server{Address: "localhost", PortVoice: debugPortVoice, PortData: debugPortData, ServerName: GetRandomServerName()}
+var Port = DefaultPort
+
+func CreateServerRandomName(port string) *Server {
+	server = Server{Address: "localhost", PortVoice: port, PortData: port, ServerName: GetRandomServerName()}
 	return &server
 }
 
-func CreateServer(serverName string) *Server {
-	server = Server{Address: "localhost", PortVoice: debugPortVoice, PortData: debugPortData, ServerName: serverName, Connections: make([]VoiceConnection, 0)}
+func CreateServer(serverName string, port string) *Server {
+	server = Server{Address: "localhost", PortVoice: port, PortData: port, ServerName: serverName, Connections: make([]VoiceConnection, 0)}
 	return &server
 }
 
@@ -55,7 +56,7 @@ func dataServerBaseURL(w http.ResponseWriter, r *http.Request) {
 		users[i] = item.Name
 	}
 
-	var serverData ServerData = ServerData{ServerName: server.ServerName, Users: server.Connections}
+	var serverData ServerData = ServerData{ServerName: server.ServerName, Users: users}
 
 	// Serialize the data to JSON and write it to the response
 	err := json.NewEncoder(w).Encode(serverData)
@@ -71,7 +72,7 @@ func HostDataServer(server *Server) {
 	serverURLFull := server.Address + ":" + server.PortData
 
 	// Start the HTTPS server with SSL certificate and private key
-	fmt.Println("Starting HTTPS server on " + serverURLFull)
+	fmt.Println("Starting HTTPS server on " + serverURLFull + " - [Messaing Gateway + Data Server]")
 	err := http.ListenAndServe(serverURLFull, nil)
 	if err != nil {
 		log.Fatalf("Server failed to start: %v", err)

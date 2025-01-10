@@ -12,7 +12,7 @@ export type ServerInformation = {
   users: string[];
 }
 
-const SidePanel = ({setServerIP, setIsConnected ,setInitServerData}: any) => {
+const SidePanel = ({setServerIP, setIsConnected ,setInitServerData, setServerName}: any) => {
   const [myServers, setMyServers] = useState<ServerInformation[]>([]);
   const [search, setSearch] = useState("");
 
@@ -45,6 +45,7 @@ const SidePanel = ({setServerIP, setIsConnected ,setInitServerData}: any) => {
                 marginLeft: "5px", marginRight: "5px", borderRadius: "4px", border: "2px solid black", display: 'flex', flexDirection: "column"}} onClick={() => {
                 console.log("Connecting to " + item?.serverName + " @ " + item?.serverIP)
                 if(setServerIP) setServerIP(item?.serverIP);
+                if(setServerName) setServerName(item?.serverName);
                 if(setIsConnected) setIsConnected(true);
                 if(setInitServerData) setInitServerData(item);
               }}>

@@ -9,6 +9,7 @@ A Full Recreation of Discord
 - ~~Audio Playing~~
 - ~~Text Messages~~
 - Auto Server Removal Upon Sever Offline (Server Checker)
+- Infinite Loop When Server Cannot Be Found (Server Adder)
 - **DO NOT** Send Audio When Silent
     - Voice Detection
     - Global Push-to-Talk
