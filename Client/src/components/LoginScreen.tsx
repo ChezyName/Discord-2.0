@@ -1,15 +1,84 @@
-export function isLoggedIn() {
-    return true;
+import { Box, Button, TextField, Typography } from "@mui/material";
+import { useState } from "react";
+
+export function isLoggedIn() : boolean {
+  return localStorage.getItem('displayName') !== null
+  && localStorage.getItem('displayName') !== undefined
+  && localStorage.getItem('displayName') !== "";
 }
 
-const LoginScreen = () => {
+function Login(displayName: string) {
+  if(displayName === "") return
+  //Login
+  //Browsers use LocalStorage, Standalone use Filesystem via FunctionLib
+  console.log("Logingin as: " + displayName)
+  localStorage.setItem('displayName', displayName);
+}
+
+const LoginScreen = ({setLoginChanged}:any) => {
+  const [displayName, setDisplayName] = useState('');
+
   return (
-    <div style={{width: '100%', height: '100%', backgroundColor: 'white',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
+    <Box sx={{width: '100vw', height: '100vh',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        minHeight: '100%',
+        backgroundImage:
+        'radial-gradient(at 50% 50%, rgba(0, 41, 82, 0.5), rgb(9, 11, 17))',
+        backgroundRepeat: 'no-repeat', backgroundColor: 'hsl(220, 35%, 3%)',
+    }}>
         
-        <h1>Welcome Back,</h1>
-        <input/>
-    </div>
+        <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center',
+          backgroundColor: "rgba(5, 7, 10, 0.4)", borderRadius: '8px', border: '2px solid hsl(220deg 20% 25% / 60%)', padding: "24px",
+          paddingTop: "24px", paddingBottom: "24px", width: "40vw", height: 'auto', color: 'white'
+        }}>
+          {/* <Typography variant="h4" sx={{width: "100%", textAlign: "center"}}>Discord 2</Typography> */}
+          
+          <Typography fontWeight={'bold'} variant="h4" sx={{marginBottom: "0px"}}>Welcome back!</Typography>
+          <Typography variant="h6" sx={{marginBottom: "42px"}}>We're so excited to see you again!</Typography>
+
+          <TextField value={displayName} InputLabelProps={{shrink: true, style: {display: 'none'}}} sx={{marginRight: "2%", marginLeft: "2%",
+                '& legend': { display: 'none' }, '& fieldset': { top: 0 }, width: "80%", display: 'flex', flexGrow: 1,
+                '& .MuiInputBase-input': {height: 'calc(1.4375em/2)'},
+                backgroundColor: 'hsl(220, 35%, 3%) !important', borderRadius: '8px'
+              }}
+              InputProps={{
+                sx: {
+                  height: '100%',
+                  alignItems: 'start',
+                  color: "white",
+                }
+              }}
+              id="message" label="Message" variant='outlined' placeholder={'Display Name'}
+              onChange={(event) => {
+                setDisplayName(event.target.value);
+              }}
+              onKeyUp={(e) => {
+                if(e.key === 'Enter') {
+                  Login(displayName);
+                  setLoginChanged();
+                }
+              }}
+            />
+
+            <Button onClick={() => {Login(displayName); setLoginChanged();}} sx={{marginTop: "16px", width: "80%",
+              height: "42px", borderRadius: "8px", backgroundColor: 'hsl(220, 35%, 3%)',
+              transition: '0.25s ease-in-out border',
+              '*': { borderRadius: '8px' },
+            }}>
+              <Typography color="white" fontWeight={'bold'}>Login</Typography>
+            </Button>
+
+            <div style={{width: "80%", height: "100%", borderBottom: "1px solid white", marginTop: "15px"}}></div>
+
+            <Typography width={'80%'} textAlign={'center'} marginTop={'8px'} fontSize={'8px'}>
+            Discord 2 is an independent project and is not affiliated, associated, authorized,
+            endorsed by, or in any way officially connected with Discord Inc.
+            The name 'Discord' and its logo are trademarks of Discord Inc.
+
+            This was for fun, please dont sue me Discord.
+            </Typography>
+        </div>
+    </Box>
   )
 }
 

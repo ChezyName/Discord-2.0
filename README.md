@@ -13,6 +13,7 @@ A Full Recreation of Discord
 - **DO NOT** Send Audio When Silent
     - Voice Detection
     - Global Push-to-Talk
+- Custom Title Bar
 
 
 - **MEMORY LEAK:** There is a memory leak from the Rodio Audio Driver since the stream is force dropped and not managed by Rust.
