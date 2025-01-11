@@ -1,6 +1,6 @@
 import Typography from '@mui/material/Typography'
 
-const SingleMessage = ({message, displayName, isSameAsLast}: any) => {
+const SingleMessage = ({message, displayName, isSameAsLast, passedRef}: any) => {
   return (
     <div style={{width: "calc(100% - 24px)", height: "auto", paddingLeft: "12px", paddingRight: "12px"}}>
       {
@@ -12,7 +12,7 @@ const SingleMessage = ({message, displayName, isSameAsLast}: any) => {
         )
       }
 
-        <Typography style={{fontSize: "16px"}}>
+        <Typography ref={passedRef} style={{fontSize: "16px"}}>
           {message}
         </Typography>
     </div>

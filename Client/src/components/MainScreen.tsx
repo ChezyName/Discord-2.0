@@ -3,7 +3,7 @@ import { invoke } from '@tauri-apps/api/core'
 import SidePanel, { ServerInformation } from "./SidePanel";
 import { getServerData } from './FunctionLibrary';
 import Messages from './Messages';
-import { Typography } from '@mui/material';
+import { Button, Typography } from '@mui/material';
 
 const MainScreen = () => {
   const [isConnected, setIsConnected] = useState(false);
@@ -40,22 +40,32 @@ const MainScreen = () => {
         setServerIP={setServerIP} setInitServerData={setServerData}
       />
 
-      <div style={{backgroundColor: '#222', color: '#FFF', width: '100%', borderLeft: '5px solid black',
+      <div style={{backgroundColor: 'var(--Background)', color: '#FFF', width: '100%', borderLeft: '5px solid var(--Outlines)',
         display: 'flex', flexDirection: 'column'}}>
 
-        <div style={{width: '100%', height: '60px', borderBottom: '5px solid black',
-          display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-          <Typography sx={{marginLeft: "8px"}} variant='h4'>{serverName}</Typography>
-          { isConnected ? <button onClick={() => {
-            setIsConnected(false)
-            setServerData(null);
-            setServerIP('');
-            setServerName('');
-          }} style={{width: "auto", height: "100%", marginLeft: "auto"}}>Disconnect</button>
+        <div style={{width: '100%', height: '60px', borderBottom: '5px solid var(--Outlines)',
+          display: (isConnected ? 'flex' : 'none'), alignItems: 'center', justifyContent: 'center'}}>
+          <Typography color='var(--Text)' sx={{marginLeft: "8px", height: '100%',
+            display: 'flex', alignItems: "center", justifyContent: 'center',
+          }} variant='h4'>{serverData?.serverName}</Typography>
+          { isConnected ? 
+            <Button onClick={() => {
+              setIsConnected(false)
+              setServerData(null);
+              setServerIP('');
+              setServerName('');
+            }} 
+            sx={{marginTop: "16px", width: "auto",
+                height: "80%", borderRadius: "8px", backgroundColor: 'var(--Interactable)',
+                transition: '0.25s ease-in-out border', color: "var(--Text)", marginLeft: "auto",
+                '*': { borderRadius: '8px' }, marginBottom: 'auto', marginTop: 'auto', marginRight: '8px',
+                border: "1px solid var(--Outlines)",
+            }}>Disconnect</Button>
           : "" }
         </div>
 
-        <div style={{marginTop: '0px', width: "100%", height: "calc(100% - 65px)"}}>
+        <div style={{ width: "100%", height: (isConnected ? 'calc(100% - 65px)' : '100%')}}>
+          {/** Allow for Commands when NOT Connected to Server - Minecraft Style?*/}
           <Messages isConnected={isConnected} serverIP={serverIP} serverName={serverName}/>
         </div>
 

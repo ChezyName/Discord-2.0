@@ -23,12 +23,12 @@ const LoginScreen = ({setLoginChanged}:any) => {
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         minHeight: '100%',
         backgroundImage:
-        'radial-gradient(at 50% 50%, rgba(0, 41, 82, 0.5), rgb(9, 11, 17))',
-        backgroundRepeat: 'no-repeat', backgroundColor: 'hsl(220, 35%, 3%)',
+        'radial-gradient(at 50% 50%, var(--Primary), var(--Secondary))',
+        backgroundRepeat: 'no-repeat', backgroundColor: 'var(--Background)',
     }}>
         
         <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center',
-          backgroundColor: "rgba(5, 7, 10, 0.4)", borderRadius: '8px', border: '2px solid hsl(220deg 20% 25% / 60%)', padding: "24px",
+          backgroundColor: "rgba(5, 7, 10, 0.4)", borderRadius: '8px', border: '2px solid var(--Outlines)', padding: "24px",
           paddingTop: "24px", paddingBottom: "24px", width: "40vw", height: 'auto', color: 'white'
         }}>
           {/* <Typography variant="h4" sx={{width: "100%", textAlign: "center"}}>Discord 2</Typography> */}
@@ -39,13 +39,13 @@ const LoginScreen = ({setLoginChanged}:any) => {
           <TextField value={displayName} InputLabelProps={{shrink: true, style: {display: 'none'}}} sx={{marginRight: "2%", marginLeft: "2%",
                 '& legend': { display: 'none' }, '& fieldset': { top: 0 }, width: "80%", display: 'flex', flexGrow: 1,
                 '& .MuiInputBase-input': {height: 'calc(1.4375em/2)'},
-                backgroundColor: 'hsl(220, 35%, 3%) !important', borderRadius: '8px'
+                backgroundColor: 'var(--Interactable) !important', borderRadius: '8px'
               }}
               InputProps={{
                 sx: {
                   height: '100%',
                   alignItems: 'start',
-                  color: "white",
+                  color: "var(--Text)",
                 }
               }}
               id="message" label="Message" variant='outlined' placeholder={'Display Name'}
@@ -61,16 +61,16 @@ const LoginScreen = ({setLoginChanged}:any) => {
             />
 
             <Button onClick={() => {Login(displayName); setLoginChanged();}} sx={{marginTop: "16px", width: "80%",
-              height: "42px", borderRadius: "8px", backgroundColor: 'hsl(220, 35%, 3%)',
+              height: "42px", borderRadius: "8px", backgroundColor: 'var(--Interactable)',
               transition: '0.25s ease-in-out border',
               '*': { borderRadius: '8px' },
             }}>
-              <Typography color="white" fontWeight={'bold'}>Login</Typography>
+              <Typography color='var(--Text)' fontWeight={'bold'}>Login</Typography>
             </Button>
 
             <div style={{width: "80%", height: "100%", borderBottom: "1px solid white", marginTop: "15px"}}></div>
 
-            <Typography width={'80%'} textAlign={'center'} marginTop={'8px'} fontSize={'8px'}>
+            <Typography color='var(--Text)' width={'80%'} textAlign={'center'} marginTop={'8px'} fontSize={'8px'}>
             Discord 2 is an independent project and is not affiliated, associated, authorized,
             endorsed by, or in any way officially connected with Discord Inc.
             The name 'Discord' and its logo are trademarks of Discord Inc.
