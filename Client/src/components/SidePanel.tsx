@@ -3,6 +3,7 @@ import { getServerData, getServerList, removeFromServerList } from './FunctionLi
 import ServerMenu from './ServerMenu';
 import { Box, Button, Typography } from '@mui/material';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import UserInformation from './UserInformation';
 
 const SERVER_SEARCH_INTERVAL = 500;
 
@@ -53,7 +54,7 @@ const SidePanel = ({setServerIP, setIsConnected ,setInitServerData, setServerNam
   return (
     <div style={{width: '30%', height: '100%', backgroundColor: 'var(--Background)', minWidth: "240px"}}>
       <ServerMenu setSearch={setSearch}/>
-      <Box sx={{overflowY: 'auto', color: 'var(--Text)', backgroundColor: 'var(--Background)', marginTop: "0px", height: 'calc(100% - 66px)'}}>
+      <Box sx={{overflowY: 'auto', color: 'var(--Text)', backgroundColor: 'var(--Background)', marginTop: "0px", height: 'calc(100% - 66px - 82px)'}}>
         {
           myServers.length > 0 ? (myServers.map((item) => {
             if(item.serverName.toLowerCase().includes(search.toLowerCase()) || item.serverIP.toLowerCase().includes(search.toLowerCase())) {
@@ -83,6 +84,10 @@ const SidePanel = ({setServerIP, setIsConnected ,setInitServerData, setServerNam
           })) : ""
         }
       </Box>
+      <Box sx={{
+        width: "100%", height: "80px", backgroundColor: 'var(--Secondary)',
+        borderTop: '2px solid var(--Outlines)', color: 'var(--Text)',
+      }}> <UserInformation/> </Box>
     </div>
   )
 }

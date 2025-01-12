@@ -33,8 +33,8 @@ const LoginScreen = ({setLoginChanged}:any) => {
         }}>
           {/* <Typography variant="h4" sx={{width: "100%", textAlign: "center"}}>Discord 2</Typography> */}
           
-          <Typography fontWeight={'bold'} variant="h4" sx={{marginBottom: "0px"}}>Welcome back!</Typography>
-          <Typography variant="h6" sx={{marginBottom: "42px"}}>We're so excited to see you again!</Typography>
+          <Typography color='var(--Text)' fontWeight={'bold'} variant="h4" sx={{marginBottom: "0px"}}>Welcome back!</Typography>
+          <Typography color='var(--Text)' variant="h6" sx={{marginBottom: "42px"}}>We're so excited to see you again!</Typography>
 
           <TextField value={displayName} InputLabelProps={{shrink: true, style: {display: 'none'}}} sx={{marginRight: "2%", marginLeft: "2%",
                 '& legend': { display: 'none' }, '& fieldset': { top: 0 }, width: "80%", display: 'flex', flexGrow: 1,
@@ -68,7 +68,7 @@ const LoginScreen = ({setLoginChanged}:any) => {
               <Typography color='var(--Text)' fontWeight={'bold'}>Login</Typography>
             </Button>
 
-            <div style={{width: "80%", height: "100%", borderBottom: "1px solid white", marginTop: "15px"}}></div>
+            <div style={{width: "80%", height: "100%", borderBottom: "1px solid var(--Text)", marginTop: "15px"}}></div>
 
             <Typography color='var(--Text)' width={'80%'} textAlign={'center'} marginTop={'8px'} fontSize={'8px'}>
             Discord 2 is an independent project and is not affiliated, associated, authorized,

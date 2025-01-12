@@ -33,6 +33,7 @@ async function InitServerFile() {
 
 //Returns List of Severs You Are In
 export async function getServerList(): Promise<string[]> {
+    return ['localhost:7777'];
     await InitServerFile();
     
     //Get File
@@ -109,8 +110,8 @@ export async function getServerData(Address: string) : Promise<ServerInformation
     return newData;
 }
 
-export async function getDisplayName(): Promise<string> {
-    return "DEBUG_Name";
+export function getDisplayName(): string {
+    return localStorage.getItem('displayName') || '';
 }
 
 /**

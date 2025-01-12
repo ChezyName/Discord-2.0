@@ -45,7 +45,7 @@ const MainScreen = () => {
 
         <div style={{width: '100%', height: '60px', borderBottom: '5px solid var(--Outlines)',
           display: (isConnected ? 'flex' : 'none'), alignItems: 'center', justifyContent: 'center'}}>
-          <Typography color='var(--Text)' sx={{marginLeft: "8px", height: '100%',
+          <Typography fontWeight='bold' color='var(--Text)' sx={{marginLeft: "8px", height: '100%',
             display: 'flex', alignItems: "center", justifyContent: 'center',
           }} variant='h4'>{serverData?.serverName}</Typography>
           { isConnected ? 

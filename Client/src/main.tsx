@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import MainScreen from "./components/MainScreen";
-import './main.css'
 import LoginScreen, { isLoggedIn as CheckIsLoggedIn } from "./components/LoginScreen";
+
+import './main.css'
+//import './light.css/'
 
 const Main = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(CheckIsLoggedIn());

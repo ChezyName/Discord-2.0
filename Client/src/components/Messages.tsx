@@ -118,7 +118,7 @@ const Messages = ({isConnected, serverIP, serverName}: any) => {
     <div style={{display: 'flex', flexDirection: 'column', width: "100%", height: "100%"}}>
       <div ref={messageWindow} style={{backgroundColor: "transparent", width: "100%", height: "calc(100% - 65px)",
         overflowY: "auto", margin: "0", padding: "0", display: "flex", flexDirection: "column",
-        gap: '8px'
+        gap: '0px'
       }}>
         {
           messages.map((msg: any, index: number, msgArray: any[]) => {
@@ -135,13 +135,13 @@ const Messages = ({isConnected, serverIP, serverName}: any) => {
         <TextField value={currentMessage} InputLabelProps={{shrink: true, style: {display: 'none'}}} sx={{marginRight: "2%", marginLeft: "2%",
               '& legend': { display: 'none' }, '& fieldset': { top: 0 }, width: "auto", display: 'flex', flexGrow: 1,
               '& .MuiInputBase-input': {height: 'calc(1.4375em/2)'},
-              backgroundColor: '#000 !important', borderRadius: '4px'
+              backgroundColor: 'var(--Interactable) !important', borderRadius: '4px', color: "var(--Text)",
             }}
             InputProps={{
               sx: {
                 height: '100%',
                 alignItems: 'start',
-                color: "white",
+                color: "var(--Text)",
               }
             }}
             id="message" label="Message" variant='outlined' placeholder={'Message '+serverName}
