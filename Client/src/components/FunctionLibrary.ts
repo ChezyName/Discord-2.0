@@ -125,3 +125,12 @@ export function isScrolledOnElement(item: HTMLDivElement | null): boolean {
     if(item == null) return false
     return item.getBoundingClientRect().bottom <= window.innerHeight
 }
+
+/**
+ * Given a URL, openes it in a new tab / window.
+ * @param url 
+ */
+export const openInNewTab = (url:string) => {
+    const newWindow = window.open(url, '_blank', 'noopener,noreferrer')
+    if (newWindow) newWindow.opener = null
+}

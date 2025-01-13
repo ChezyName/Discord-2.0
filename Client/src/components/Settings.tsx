@@ -1,5 +1,7 @@
 import { Modal, Box, Tabs, Tab as TabNative, TabsProps, styled, Button, Typography, TypographyProps } from '@mui/material'
 import React, { useState } from 'react'
+import CopyrightNotice from './CopyrightNotice';
+import Appearence from './Appearence';
 
 let Tab = styled(TabNative)<TabsProps> (({ theme }) => ({ 
     color: 'var(--Text)',
@@ -29,7 +31,7 @@ function TabPanel(props: TabPanelProps) {
         style={{width: "100%", height: "100%"}}
       >
         {value === index && (
-          <Box sx={{ p: 3 }}>
+          <Box sx={{ p: '12px', width: "calc(100% - 24px)", height: "calc(100% - 24px)" }}>
             {children}
           </Box>
         )}
@@ -79,12 +81,14 @@ const Settings = () => {
             </Tabs>
             <TabPanel value={currentTab} index={0}>
                 <Title>Appearence</Title>
+                <Appearence />
             </TabPanel>
             <TabPanel value={currentTab} index={1}>
                 <Title>Voice & Video</Title>
             </TabPanel>
             <TabPanel value={currentTab} index={2}>
                 <Title>Copyright & Credits</Title>
+                <CopyrightNotice />
             </TabPanel>
         </Box>
     )

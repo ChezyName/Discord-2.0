@@ -10,7 +10,7 @@ import HeadsetOffIcon from '@mui/icons-material/HeadsetOff';
 import SettingsIcon from '@mui/icons-material/Settings';
 import Settings from './Settings';
 
-let IconButton = styled(Button)<ButtonProps> (({ theme }) => ({
+export const IconButton = styled(Button)<ButtonProps> (({ theme }) => ({
     marginTop: "16px", width: "auto", aspectRatio: '1', minWidth: "16px",
     height: "auto", borderRadius: "8px", backgroundColor: 'var(--Interactable)',
     transition: '0.25s ease-in-out border', color: "var(--Text)", marginLeft: "auto",
