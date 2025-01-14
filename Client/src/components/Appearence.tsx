@@ -1,12 +1,32 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Box, Typography, FormControl, InputLabel, Select, MenuItem } from '@mui/material'
 
 const Appearence = () => {
-    const [theme, setTheme] = useState('dark');
+    useEffect(() => {
+        if(localStorage.getItem('theme') == null || localStorage.getItem('theme') == undefined) {
+            localStorage.setItem('theme','dark');
+        }
+        
+        localStorage.setItem('themeReload', 'false');
+     }, [])
 
-    function changeTheme(theme:string) {
+    function changeTheme(theme:string|null) {
+        if(theme == null) return;
+        localStorage.setItem('themeReload', 'true');
+        
         //Selecting Theme
         console.log('[NEW THEME]', theme)
+        if(theme == 'dark' || theme == 'light'){
+            localStorage.setItem('theme', theme);
+        }
+        else if(theme == 'custom') {
+            //Custom Theme That File Must Be Loaded
+        }
+        else {
+            //Custom Theme Here
+        }
+
+        window.location.reload();
     }
 
     return (
@@ -24,7 +44,7 @@ const Appearence = () => {
                     <Select
                         labelId="demo-simple-select-label"
                         id="demo-simple-select"
-                        value={theme}
+                        value={localStorage.getItem('theme')}
                         label="Theme"
                         onChange={(e) => {changeTheme(e.target.value)}}
                         sx={{

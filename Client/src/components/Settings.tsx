@@ -1,5 +1,5 @@
 import { Modal, Box, Tabs, Tab as TabNative, TabsProps, styled, Button, Typography, TypographyProps } from '@mui/material'
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import CopyrightNotice from './CopyrightNotice';
 import Appearence from './Appearence';
 
@@ -41,6 +41,10 @@ function TabPanel(props: TabPanelProps) {
 
 const Settings = () => {
     const [currentTab, setTab] = useState(0);
+
+    useEffect(() => {
+        if(localStorage.getItem('themeReload')) setTab(0);
+    }, [])
 
     return (
         <Box sx={{
@@ -95,8 +99,12 @@ const Settings = () => {
 }
 
 const SettingsParent = ({isModalOpen, setModalOpen}:any) => {
+    useEffect(() => {
+        if(localStorage.getItem('themeReload') == 'true') setModalOpen(true);
+    }, [])
+
   return (
-    <Modal open={isModalOpen} onClose={() => {if(setModalOpen) setModalOpen(false);}}
+    <Modal open={isModalOpen} onClose={() => {if(setModalOpen) setModalOpen(false); localStorage.setItem('themeReload', 'false')}}
     aria-labelledby="modal-modal-title"
     aria-describedby="modal-modal-description">
         <Box sx={{display: 'flex', flexDirection: "column",
