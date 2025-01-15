@@ -33,7 +33,6 @@ async function InitServerFile() {
 
 //Returns List of Severs You Are In
 export async function getServerList(): Promise<string[]> {
-    return ['localhost:7777'];
     await InitServerFile();
     
     //Get File

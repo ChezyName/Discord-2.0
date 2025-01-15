@@ -7,7 +7,7 @@ import './main.css'
 
 import dark from './dark.css'
 import light from './light.css'
-import { BaseDirectory } from "@tauri-apps/plugin-fs";
+import { exists, BaseDirectory, readTextFile } from '@tauri-apps/plugin-fs';
 
 const Main = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(CheckIsLoggedIn());
@@ -29,19 +29,52 @@ const Main = () => {
     if(theme == 'light') themeHref = './light.css'
 
 
-    let relative = window.__TAURI__ ? BaseDirectory.AppLocalData : '/src/';
+    let relative = theme == 'custom' ? BaseDirectory.AppLocalData : '/src/';
+    let href = relative + (theme || '') + '.css';
 
     //Apply Theme
     const styleElement = document.createElement('link');
-    styleElement.href = relative + (theme || '') + '.css';
+    if(theme === 'dark' || theme === 'light') styleElement.href = href;
     styleElement.rel = 'stylesheet'
     styleElement.type = 'text/css'
     document.head.append(styleElement);
 
-    console.log(styleElement);
+    const styleElementCustom = document.createElement('style');
+    document.head.append(styleElementCustom);
+
+    if(theme && theme !== 'dark' && theme !== 'light') {
+      console.log("Opening Custom File @: ", theme)
+      //Load Custom from Folder
+      let loadThemeFile = async () => {
+        if(theme == null) {
+          localStorage.setItem('theme','dark');
+          window.location.reload();
+          return;
+        }
+
+        const exsists = await exists(theme, {
+          baseDir: BaseDirectory.AppLocalData,
+        });
+
+        //Read file and append
+        if(exsists){
+          const fileContents = await readTextFile(theme, {
+            baseDir: BaseDirectory.AppLocalData,
+          });
+          
+          console.log("Loaded CSS File:", fileContents)
+          styleElementCustom.textContent = fileContents;
+        }
+      }
+
+      loadThemeFile();
+    }
+
+    //console.log(styleElement);
 
     return () => {
       document.head.removeChild(styleElement);
+      document.head.removeChild(styleElementCustom);
     }
   }, [])
 

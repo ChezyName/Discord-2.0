@@ -1,0 +1,8 @@
+:root {
+    --Primary: rgba(255, 221, 0, 0.5);
+    --Secondary: rgb(255, 219, 136);
+    --Background: hsl(48, 35%, 70%);
+    --Outlines: hsla(39, 56%, 50%, 0.6);
+    --Text: #000000;
+    --Interactable: hsl(36, 100%, 50%);
+}
