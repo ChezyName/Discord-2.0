@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { Box, Typography, FormControl, InputLabel, Select, MenuItem } from '@mui/material'
 import { open } from '@tauri-apps/plugin-dialog';
 import { readFile, writeFile, BaseDirectory, readDir, DirEntry } from '@tauri-apps/plugin-fs';
-import { path } from '@tauri-apps/api';
 
 const Appearence = () => {
     const [customThemes, setCustomThemes] = useState<string[]>([]);

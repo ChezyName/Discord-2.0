@@ -2,7 +2,7 @@ import { ServerInformation } from "./SidePanel";
 import { BaseDirectory, create, exists, writeFile, readFile } from '@tauri-apps/plugin-fs';
 
 //THE DEFAULT DATA PORT
-const DEFAULT_DATA_PORT = '3000';
+//const DEFAULT_DATA_PORT = '3000';
 const SERVER_LIST_FILE_NAME = "DISCORD2_SERVERS";
 
 function getDataServerFromAddress(address: string): URL{

@@ -1,17 +1,17 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Box, Button, ButtonProps, Typography, styled } from '@mui/material';
 import { getTauriVersion } from '@tauri-apps/api/app';
 
 import { getDisplayName } from './FunctionLibrary';
 
 //TEMP ICONS UNTIL FUNCTIONALITY IS COMPLETED
-import MicIcon from '@mui/icons-material/Mic';
-import HeadsetOffIcon from '@mui/icons-material/HeadsetOff';
+//import MicIcon from '@mui/icons-material/Mic';
+//import HeadsetOffIcon from '@mui/icons-material/HeadsetOff';
 import SettingsIcon from '@mui/icons-material/Settings';
 import Settings from './Settings';
 
-export const IconButton = styled(Button)<ButtonProps> (({ theme }) => ({
-    marginTop: "16px", width: "auto", aspectRatio: '1', minWidth: "16px",
+export const IconButton = styled(Button)<ButtonProps> (() => ({
+    width: "auto", aspectRatio: '1', minWidth: "16px",
     height: "auto", borderRadius: "8px", backgroundColor: 'var(--Interactable)',
     transition: '0.25s ease-in-out border', color: "var(--Text)", marginLeft: "auto",
     '*': { borderRadius: '8px' }, marginBottom: 'auto', marginTop: 'auto', marginRight: '0px',

@@ -5,8 +5,9 @@ import LoginScreen, { isLoggedIn as CheckIsLoggedIn } from "./components/LoginSc
 
 import './main.css'
 
-import dark from './dark.css'
-import light from './light.css'
+import dark from "./dark.module.css?inline";
+import light from "./light.module.css?inline";
+
 import { exists, BaseDirectory, readTextFile } from '@tauri-apps/plugin-fs';
 
 const Main = () => {
@@ -24,23 +25,13 @@ const Main = () => {
     }
 
     let theme = localStorage.getItem('theme')
-    let themeHref = './dark.css'
-
-    if(theme == 'light') themeHref = './light.css'
-
-
-    let relative = theme == 'custom' ? BaseDirectory.AppLocalData : '/src/';
-    let href = relative + (theme || '') + '.css';
-
-    //Apply Theme
-    const styleElement = document.createElement('link');
-    if(theme === 'dark' || theme === 'light') styleElement.href = href;
-    styleElement.rel = 'stylesheet'
-    styleElement.type = 'text/css'
-    document.head.append(styleElement);
 
     const styleElementCustom = document.createElement('style');
     document.head.append(styleElementCustom);
+
+    if(theme == 'dark' || theme == 'light') {
+      styleElementCustom.textContent = theme == 'dark' ? dark : light;
+    }
 
     if(theme && theme !== 'dark' && theme !== 'light') {
       console.log("Opening Custom File @: ", theme)
@@ -73,7 +64,6 @@ const Main = () => {
     //console.log(styleElement);
 
     return () => {
-      document.head.removeChild(styleElement);
       document.head.removeChild(styleElementCustom);
     }
   }, [])

@@ -55,7 +55,7 @@ const MainScreen = () => {
               setServerIP('');
               setServerName('');
             }} 
-            sx={{marginTop: "16px", width: "auto",
+            sx={{width: "auto",
                 height: "80%", borderRadius: "8px", backgroundColor: 'var(--Interactable)',
                 transition: '0.25s ease-in-out border', color: "var(--Text)", marginLeft: "auto",
                 '*': { borderRadius: '8px' }, marginBottom: 'auto', marginTop: 'auto', marginRight: '8px',

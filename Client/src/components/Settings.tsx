@@ -3,11 +3,11 @@ import React, { useEffect, useState } from 'react'
 import CopyrightNotice from './CopyrightNotice';
 import Appearence from './Appearence';
 
-let Tab = styled(TabNative)<TabsProps> (({ theme }) => ({ 
+let Tab = styled(TabNative)<TabsProps> (() => ({ 
     color: 'var(--Text)',
 }));
 
-let Title = styled(Typography)<TypographyProps> (({ theme }) => ({
+let Title = styled(Typography)<TypographyProps> (() => ({
     fontSize: '32px', fontWeight: 'bold', width: '100%',
     color: 'var(--Text)', borderBottom: '2px solid var(--Outlines)'
 }));
@@ -55,7 +55,7 @@ const Settings = () => {
                 orientation="vertical"
                 variant="scrollable"
                 value={currentTab}
-                onChange={(e,v) => {setTab(v)}}
+                onChange={(_,v) => {setTab(v)}}
                 aria-label="Vertical tabs example"
                 sx={{ borderRight: 1, borderColor: 'divider',
                     "& .MuiTabs-flexContainer": {
