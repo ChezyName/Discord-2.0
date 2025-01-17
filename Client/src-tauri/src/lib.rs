@@ -239,6 +239,11 @@ fn get_input_devices(state: tauri::State<Arc<Mutex<DiscordDriver>>>) -> Vec<Stri
     return audiodriver::AudioDriver::get_input_devices();
 }
 
+#[tauri::command]
+fn get_output_devices(state: tauri::State<Arc<Mutex<DiscordDriver>>>) -> Vec<String> {
+    return audiodriver::AudioDriver::get_output_devices();
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let driver = Arc::new(Mutex::new(DiscordDriver {
@@ -257,7 +262,8 @@ pub fn run() {
             stop_audio_loop,
             start_audio_loop,
             set_server_ip,
-            get_input_devices
+            get_input_devices,
+            get_output_devices
         ])
         //.invoke_handler(tauri::generate_handler![stop_audio_loop])
         .run(tauri::generate_context!())
