@@ -289,35 +289,11 @@ impl AudioDriver {
         })
     }
 
-    pub fn get_output_devices(&self) {
+    pub fn get_output_devices() -> Vec<String>{
         // Iterate through available devices from the host
+        let mut devices: Vec<String> = Vec::new();
         let host = cpal::default_host();
-        for device in host.devices().unwrap() {
-            // Check if the device supports output
-            if let Ok(configs) = device.supported_output_configs() {
-                println!(
-                    "[AUDIO DRIVER] Output Device: {}",
-                    device.name().unwrap_or("Unknown Device".to_string())
-                );
-
-                // Optional: Print supported configurations
-                for config in configs {
-                    println!(
-                        "[AUDIO DRIVER]   Channels: {}, Sample Rates: {}-{}, Sample Format: {:?}",
-                        config.channels(),
-                        config.min_sample_rate().0,
-                        config.max_sample_rate().0,
-                        config.sample_format()
-                    );
-                }
-            }
-        }
-    }
-
-    pub fn get_input_devices(&mut self) {
-        // Iterate through available devices from the host
-        let host = cpal::default_host();
-        for device in host.devices().unwrap() {
+        for device in host.output_devices().unwrap() {
             // Check if the device supports output
             if let Ok(configs) = device.supported_input_configs() {
                 println!(
@@ -325,6 +301,10 @@ impl AudioDriver {
                     device.name().unwrap_or("Unknown Device".to_string())
                 );
 
+                if let Ok(device_name) = device.name() {
+                    devices.push(device_name)
+                }
+
                 // Optional: Print supported configurations
                 for config in configs {
                     println!(
@@ -337,6 +317,40 @@ impl AudioDriver {
                 }
             }
         }
+
+        return devices
+    }
+
+    pub fn get_input_devices() -> Vec<String>{
+        // Iterate through available devices from the host
+        let mut devices: Vec<String> = Vec::new();
+        let host = cpal::default_host();
+        for device in host.input_devices().unwrap() {
+            // Check if the device supports output
+            if let Ok(configs) = device.supported_input_configs() {
+                println!(
+                    "[AUDIO DRIVER] Input Device: {}",
+                    device.name().unwrap_or("Unknown Device".to_string())
+                );
+
+                if let Ok(device_name) = device.name() {
+                    devices.push(device_name)
+                }
+
+                // Optional: Print supported configurations
+                for config in configs {
+                    println!(
+                        "[AUDIO DRIVER]   Channels: {}, Sample Rates: {}-{}, Sample Format: {:?}",
+                        config.channels(),
+                        config.min_sample_rate().0,
+                        config.max_sample_rate().0,
+                        config.sample_format()
+                    );
+                }
+            }
+        }
+
+        return devices
     }
 
     pub fn get_input_device_by_name(target: &str) -> Option<Device> {

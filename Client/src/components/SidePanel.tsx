@@ -37,8 +37,8 @@ const SidePanel = ({setServerIP, setIsConnected ,setInitServerData, setServerNam
     let doServerGetData = async (list: string[]) => {
       let myServerList: ServerInformation[] = [];
       for(let i = 0; i < list.length; i++){
-        console.log(list[i]);
-        console.log("Getting Data for " + list[i])
+        //console.log(list[i]);
+        //console.log("Getting Data for " + list[i])
         let data: ServerInformation|null = await getServerData(list[i]);
         if(data !== null) myServerList.push(data);
       }

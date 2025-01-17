@@ -16,6 +16,7 @@ struct DiscordDriver {
     can_send_audio: bool,
     server_ip: String,
     user_name: String,
+    is_audio_debug: bool, //If True, Cannot Send Audio, Audio is Being Tested
 }
 
 #[tauri::command]
@@ -233,6 +234,11 @@ fn set_server_ip(state: tauri::State<Arc<Mutex<DiscordDriver>>>, server_ip: Stri
     });
 }
 
+#[tauri::command]
+fn get_input_devices(state: tauri::State<Arc<Mutex<DiscordDriver>>>) -> Vec<String> {
+    return audiodriver::AudioDriver::get_input_devices();
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let driver = Arc::new(Mutex::new(DiscordDriver {
@@ -240,6 +246,7 @@ pub fn run() {
         can_send_audio: false, // Set to true for testing
         server_ip: "127.0.0.1:3000".to_string(),
         user_name: "Username Not Set".to_string(),
+        is_audio_debug: false, //if true, stops the sending of audio and instead 'tests' by pipe'ing audio into headphones
     }));
 
     tauri::Builder::default()
@@ -249,7 +256,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             stop_audio_loop,
             start_audio_loop,
-            set_server_ip
+            set_server_ip,
+            get_input_devices
         ])
         //.invoke_handler(tauri::generate_handler![stop_audio_loop])
         .run(tauri::generate_context!())

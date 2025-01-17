@@ -2,6 +2,7 @@ import { Modal, Box, Tabs, Tab as TabNative, TabsProps, styled, Button, Typograp
 import React, { useEffect, useState } from 'react'
 import CopyrightNotice from './CopyrightNotice';
 import Appearence from './Appearence';
+import Voice from './Voice';
 
 let Tab = styled(TabNative)<TabsProps> (() => ({ 
     color: 'var(--Text)',
@@ -9,7 +10,8 @@ let Tab = styled(TabNative)<TabsProps> (() => ({
 
 let Title = styled(Typography)<TypographyProps> (() => ({
     fontSize: '32px', fontWeight: 'bold', width: '100%',
-    color: 'var(--Text)', borderBottom: '2px solid var(--Outlines)'
+    color: 'var(--Text)', borderBottom: '2px solid var(--Outlines)',
+    marginBottom: "12px",
 }));
 
 interface TabPanelProps {
@@ -89,6 +91,7 @@ const Settings = () => {
             </TabPanel>
             <TabPanel value={currentTab} index={1}>
                 <Title>Voice & Video</Title>
+                <Voice />
             </TabPanel>
             <TabPanel value={currentTab} index={2}>
                 <Title>Copyright & Credits</Title>
