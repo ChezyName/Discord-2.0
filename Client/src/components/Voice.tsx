@@ -3,8 +3,22 @@ import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 
 //Loads Devices into Memory (LocalStorage) for 'Faster' Load Times
-export function InitDevices() {
+export async function InitDevices() {
+  //Place them in LocalStorage
+    let currentDevice = await invoke('get_current_devices') as string[];
+    let inputs = await invoke('get_input_devices') as string[];
+    let outputs = await invoke('get_output_devices') as string[];
 
+    //save to local storage
+    let json = {
+      InputDevices: inputs,
+      OutputDevices: outputs,
+      InputDevice: currentDevice[0],
+      OutputDevice: currentDevice[1],
+    }
+
+    localStorage.setItem("AudioDevices", JSON.stringify(json));
+    return json;
 }
 
 const Voice = () => {
@@ -33,6 +47,7 @@ const Voice = () => {
   // Device Init
   useEffect(() => {
     // Getting Default Devices (based on FS)
+    /*
     invoke('get_current_devices').then((returnData) => {
       console.log("Returned Devices:", returnData);
       
@@ -51,6 +66,27 @@ const Voice = () => {
       console.log("Output Devices:", data);
       setOutputDevices(data as string[]);
     });
+    */
+    
+    let init_and_load = async () => {
+      let data = await InitDevices();
+      setInputDevices(data.InputDevices)
+      setOutputDevices(data.OutputDevices)
+      setCurrentInputDevice(data.InputDevice)
+      setCurrentOutputDevice(data.OutputDevice)
+    }
+
+    let jsonData = localStorage.getItem('AudioDevices');
+    if(jsonData) {
+      let data = JSON.parse(jsonData)
+      setInputDevices(data.InputDevices)
+      setOutputDevices(data.OutputDevices)
+      setCurrentInputDevice(data.InputDevice)
+      setCurrentOutputDevice(data.OutputDevice)
+    }
+
+
+    init_and_load();
   }, []);
 
   // Logs whenever CurrentInputDevice or CurrentOutputDevice changes

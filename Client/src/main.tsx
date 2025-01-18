@@ -9,6 +9,7 @@ import dark from "./dark.module.css?inline";
 import light from "./light.module.css?inline";
 
 import { exists, BaseDirectory, readTextFile } from '@tauri-apps/plugin-fs';
+import { InitDevices } from "./components/Voice";
 
 const Main = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(CheckIsLoggedIn());
@@ -61,7 +62,8 @@ const Main = () => {
       loadThemeFile();
     }
 
-    //console.log(styleElement);
+    //Make sure Voice Data is Loaded
+    InitDevices();
 
     return () => {
       document.head.removeChild(styleElementCustom);
