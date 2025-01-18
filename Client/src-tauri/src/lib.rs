@@ -244,15 +244,9 @@ fn get_output_devices(state: tauri::State<Arc<Mutex<DiscordDriver>>>) -> Vec<Str
     return audiodriver::AudioDriver::get_output_devices();
 }
 
-//Check file system to get the config for the file
 #[tauri::command]
-fn get_current_input_device(state: tauri::State<Arc<Mutex<DiscordDriver>>>) -> String {
-    return "NOT FOUND".into()
-}
-
-#[tauri::command]
-fn get_current_output_device(state: tauri::State<Arc<Mutex<DiscordDriver>>>) -> String {
-    return "NOT FOUND".into()
+fn get_current_devices(state: tauri::State<Arc<Mutex<DiscordDriver>>>) -> Vec<String> {
+    return audiodriver::AudioDriver::get_current_audio_devices();
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -276,8 +270,7 @@ pub fn run() {
             set_server_ip,
             get_input_devices,
             get_output_devices,
-            get_current_input_device,
-            get_current_output_device
+            get_current_devices
         ])
         .setup(|app| {
             audiodriver::AudioDriver::initFiles();

@@ -32,8 +32,9 @@ use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::{watch, Mutex};
 use std::path::{Path, PathBuf};
 use dirs;
-use serde_json::json;
+use serde_json::{json, Value};
 use std::fs::{File, write};
+use std::io::{self, BufReader};
 
 pub fn run_audio_debugger() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize the default audio host
@@ -862,6 +863,29 @@ impl AudioDriver {
         } else {
             eprintln!("Failed to get config file location.");
         }
+    }
+
+    // [0] = input device
+    // [1] = output device
+    pub fn get_current_audio_devices() -> Vec<String> {
+        // Attempt to open the file
+        if let Some(loc) = get_config_file() {
+            if let Ok(file) = File::open(loc) {
+                let reader = BufReader::new(file);
+
+                // Attempt to parse JSON
+                if let Ok(json_data) = serde_json::from_reader::<_, Value>(reader) {
+                    // Extract values from the JSON and collect into a Vec
+                    let input_device = json_data["input_device"].as_str().unwrap_or("").to_string();
+                    let output_device = json_data["output_device"].as_str().unwrap_or("").to_string();
+
+                    return vec![input_device, output_device];
+                }
+            }
+        }
+
+        // Return an empty vector if anything goes wrong
+        vec![]
     }
 }
 
