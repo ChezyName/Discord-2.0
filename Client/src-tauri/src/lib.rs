@@ -249,6 +249,32 @@ fn get_current_devices(state: tauri::State<Arc<Mutex<DiscordDriver>>>) -> Vec<St
     return audiodriver::AudioDriver::get_current_audio_devices();
 }
 
+//When Changing Inputs, Disconnect from Sever, Change Input, Reconnect
+#[tauri::command]
+fn change_current_input_device(state: tauri::State<Arc<Mutex<DiscordDriver>>>, input_device: String) {
+    let device = audiodriver::AudioDriver::get_current_audio_devices();
+    if device.len() > 2 {
+        let output_device = &device[1];
+        audiodriver::AudioDriver::writeAudioConfig(&input_device, &output_device);
+        println!("[AUDIO DRIVER/CID] Changed Input Device to: {}", &input_device)
+    }
+    else {
+        println!("[AUDIO DRIVER/CID] Failed to Read Device List (in Audio File)")
+    }
+}
+
+#[tauri::command]
+fn change_current_output_device(state: tauri::State<Arc<Mutex<DiscordDriver>>>, output_device: String) {
+    let device = audiodriver::AudioDriver::get_current_audio_devices();
+    if device.len() > 1 {
+        let input_device = &device[0];
+        audiodriver::AudioDriver::writeAudioConfig(&input_device, &output_device);
+        println!("[AUDIO DRIVER/CID] Changed Output Device to: {}", &output_device)
+    } else {
+        println!("[AUDIO DRIVER/COD] Failed to Read Device List (in Audio File)")
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     //Init Driver
@@ -270,7 +296,9 @@ pub fn run() {
             set_server_ip,
             get_input_devices,
             get_output_devices,
-            get_current_devices
+            get_current_devices,
+            change_current_input_device,
+            change_current_output_device
         ])
         .setup(|app| {
             audiodriver::AudioDriver::initFiles();

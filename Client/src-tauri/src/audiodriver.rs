@@ -854,14 +854,16 @@ impl AudioDriver {
             });
 
             if let Ok(json_data) = serde_json::to_string_pretty(&file_contents) {
+                println!("[AUDIO DRIVER/FS] Changing Devices: {}", json_data);
+
                 if let Err(e) = write(loc, json_data) {
-                    eprintln!("Failed to write audio config to file: {}", e);
+                    eprintln!("[AUDIO DRIVER/FS] Failed to write audio config to file: {}", e);
                 }
             } else {
-                eprintln!("Failed to serialize JSON data.");
+                eprintln!("[AUDIO DRIVER/FS] Failed to serialize JSON data.");
             }
         } else {
-            eprintln!("Failed to get config file location.");
+            eprintln!("[AUDIO DRIVER/FS] Failed to get config file location.");
         }
     }
 

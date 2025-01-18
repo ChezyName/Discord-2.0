@@ -2,6 +2,11 @@ import { Button, MenuItem, Select, Slider, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 
+//Loads Devices into Memory (LocalStorage) for 'Faster' Load Times
+export function InitDevices() {
+
+}
+
 const Voice = () => {
   const [isAudioTest, setAudioTest] = useState(false);
   
@@ -27,6 +32,15 @@ const Voice = () => {
 
   // Device Init
   useEffect(() => {
+    // Getting Default Devices (based on FS)
+    invoke('get_current_devices').then((returnData) => {
+      console.log("Returned Devices:", returnData);
+      
+      let data = returnData as string[];
+      if (data.length > 0) setCurrentInputDevice(data[0] || ''); // Default to empty string if undefined
+      if (data.length > 1) setCurrentOutputDevice(data[1] || ''); // Default to empty string if undefined
+    });
+
     // Getting all current input devices
     invoke('get_input_devices').then((data) => {
       console.log("Input Devices:", data);
@@ -37,17 +51,6 @@ const Voice = () => {
       console.log("Output Devices:", data);
       setOutputDevices(data as string[]);
     });
-
-    // Getting Default Devices (based on FS)
-    setTimeout(() => {
-      invoke('get_current_devices').then((returnData) => {
-        console.log("Returned Devices:", returnData);
-        
-        let data = returnData as string[];
-        if (data.length > 0) setCurrentInputDevice(data[0] || ''); // Default to empty string if undefined
-        if (data.length > 1) setCurrentOutputDevice(data[1] || ''); // Default to empty string if undefined
-      });
-    }, 1200);
   }, []);
 
   // Logs whenever CurrentInputDevice or CurrentOutputDevice changes
@@ -56,9 +59,19 @@ const Voice = () => {
   }, [CurrentInputDevice, CurrentOutputDevice]);
 
   function onDeviceChanged(value: string, isInputDevice: boolean) {
-    console.log("Changing device", value, "isInputDevice:", isInputDevice);
-    if (isInputDevice) setCurrentInputDevice(value);
-    else setCurrentOutputDevice(value);
+    console.log("Changing device to:", value, "isInputDevice:", isInputDevice);
+    if (isInputDevice) {
+      //Input Device
+      setCurrentInputDevice(value);
+      invoke('change_current_input_device', {inputDevice: value});
+      console.log("Changing Input Device.");
+    }
+    else {
+      //Output Device
+      setCurrentOutputDevice(value);
+      invoke('change_current_output_device', {outputDevice: value});
+      console.log("Changing Output Device.");
+    }
   }
 
   return (
