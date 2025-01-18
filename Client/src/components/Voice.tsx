@@ -1,6 +1,7 @@
 import { Button, MenuItem, Select, Slider, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { readTextFile, writeTextFile, exists, BaseDirectory } from '@tauri-apps/plugin-fs';
 
 //Loads Devices into Memory (LocalStorage) for 'Faster' Load Times
 export async function InitDevices() {
@@ -9,13 +10,39 @@ export async function InitDevices() {
     let inputs = await invoke('get_input_devices') as string[];
     let outputs = await invoke('get_output_devices') as string[];
 
+    //Get Slider Inputs
+    let volume = {
+      input: 100,
+      output: 100,
+    }
+
+    const volumeSettingsExists = await exists('audio-volume.conf', {
+      baseDir: BaseDirectory.AppLocalData,
+    });
+
+    if(volumeSettingsExists) {
+      let vData =  await readTextFile('audio-volume.conf', {
+        baseDir: BaseDirectory.AppLocalData,
+      });
+      volume = JSON.parse(vData);
+      console.log("Read Audio-V.config with Data: ", volume, "  vs  ", vData)
+    } else {
+      await writeTextFile('audio-volume.conf', JSON.stringify(volume), {
+        baseDir: BaseDirectory.AppLocalData,
+      });
+    }
+
     //save to local storage
     let json = {
       InputDevices: inputs,
       OutputDevices: outputs,
       InputDevice: currentDevice[0],
       OutputDevice: currentDevice[1],
+      InputVolume: volume.input,
+      OutputVolume: volume.output,
     }
+
+    console.log("Loaded Audio Config:", json)
 
     localStorage.setItem("AudioDevices", JSON.stringify(json));
     return json;
@@ -29,6 +56,9 @@ const Voice = () => {
 
   const [CurrentInputDevice, setCurrentInputDevice] = useState<string>('');
   const [CurrentOutputDevice, setCurrentOutputDevice] = useState<string>('');
+
+  const [InputVolume, setInputVolume] = useState(0);
+  const [OutputVolume, setOutputVolume] = useState(0);
 
   useEffect(() => {
     setAudioTest(false);
@@ -74,6 +104,8 @@ const Voice = () => {
       setOutputDevices(data.OutputDevices)
       setCurrentInputDevice(data.InputDevice)
       setCurrentOutputDevice(data.OutputDevice)
+      setInputVolume(data.InputVolume)
+      setOutputVolume(data.OutputVolume)
     }
 
     let jsonData = localStorage.getItem('AudioDevices');
@@ -83,6 +115,8 @@ const Voice = () => {
       setOutputDevices(data.OutputDevices)
       setCurrentInputDevice(data.InputDevice)
       setCurrentOutputDevice(data.OutputDevice)
+      setInputVolume(data.InputVolume)
+      setOutputVolume(data.OutputVolume)
     }
 
 
@@ -110,6 +144,35 @@ const Voice = () => {
     }
   }
 
+  async function onVolumeChanged(value: number, isInputDevice: boolean) {
+    let volume = {
+      input: InputVolume,
+      output: OutputVolume,
+    }
+
+    if(isInputDevice) {
+      setInputVolume(value)
+      volume.input = value;
+    }
+    else {
+      setOutputVolume(value)
+      volume.output = value;
+    }
+
+    console.log("Changing Audio Volume")
+
+    //Write to file & Local Storage
+    let currentData:any = JSON.parse(localStorage.getItem("AudioDevices") || '')
+    currentData['InputVolume'] = volume.input;
+    currentData['OutputVolume'] = volume.output;
+    localStorage.setItem("AudioDevices", JSON.stringify(currentData))
+
+    await writeTextFile('audio-volume.conf', JSON.stringify(volume), {
+      baseDir: BaseDirectory.AppLocalData,
+    });
+    console.log("Wrote: ", JSON.stringify(volume), " to audio-volume.conf")
+  }
+
   return (
     <>
       {/** Input & Output Selection */}
@@ -125,7 +188,10 @@ const Voice = () => {
               return <MenuItem key={Device} value={Device}>{Device}</MenuItem>;
             })}
           </Select>
-          <Slider />
+          <Slider aria-label="Small" valueLabelDisplay="auto"
+            min={0} max={100} value={InputVolume}
+            onChange={(e,n) => {if(typeof n === 'number') onVolumeChanged(n, true)}}
+          />
         </div>
 
         <div style={{ width: "48%", height: "auto", display: "flex", flexDirection: "column" }}>
@@ -139,7 +205,10 @@ const Voice = () => {
               return <MenuItem key={Device} value={Device}>{Device}</MenuItem>;
             })}
           </Select>
-          <Slider />
+          <Slider aria-label="Small" valueLabelDisplay="auto"
+            min={0} max={200} value={OutputVolume}
+            onChange={(e,n) => {if(typeof n === 'number') onVolumeChanged(n, false)}}
+          />
         </div>
       </div>
 
