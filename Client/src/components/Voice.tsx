@@ -44,7 +44,7 @@ const Voice = () => {
           <Select>
             {
               InputDevices.map((Device:string) => {
-                return <MenuItem>{Device}</MenuItem>
+                return <MenuItem value={Device}>{Device}</MenuItem>
               })
             }
           </Select>
@@ -56,7 +56,7 @@ const Voice = () => {
           <Select>
             {
               OutputDevices.map((Device:string) => {
-                return <MenuItem>{Device}</MenuItem>
+                return <MenuItem value={Device}>{Device}</MenuItem>
               })
             }
           </Select>

@@ -244,8 +244,20 @@ fn get_output_devices(state: tauri::State<Arc<Mutex<DiscordDriver>>>) -> Vec<Str
     return audiodriver::AudioDriver::get_output_devices();
 }
 
+//Check file system to get the config for the file
+#[tauri::command]
+fn get_current_input_device(state: tauri::State<Arc<Mutex<DiscordDriver>>>) -> String {
+    return "NOT FOUND".into()
+}
+
+#[tauri::command]
+fn get_current_output_device(state: tauri::State<Arc<Mutex<DiscordDriver>>>) -> String {
+    return "NOT FOUND".into()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    //Init Driver
     let driver = Arc::new(Mutex::new(DiscordDriver {
         is_connected: false,
         can_send_audio: false, // Set to true for testing
@@ -263,9 +275,15 @@ pub fn run() {
             start_audio_loop,
             set_server_ip,
             get_input_devices,
-            get_output_devices
+            get_output_devices,
+            get_current_input_device,
+            get_current_output_device
         ])
-        //.invoke_handler(tauri::generate_handler![stop_audio_loop])
+        .setup(|app| {
+            audiodriver::AudioDriver::initFiles();
+
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

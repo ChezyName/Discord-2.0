@@ -1,7 +1,15 @@
 /**
  * Flawwed Audio Driver That Holds Audio Functions For Getting and Recieving Audio,
  * Audio is created and destroyed frequently and not held in a global state
+ * 
+ * 
+ * To who ever is reading this and thinks they can deal with this file, I wish you the best of luck.
+ * TO DO = Improve File By Splitting
+ *  - Audio Input Sub File
+ *  - Audio Output Sub File
+ *  - Audio Debugger Sub File
  */
+
 pub fn print_type_of<T>(_: &T) {
     println!("{}", std::any::type_name::<T>());
 }
@@ -22,6 +30,10 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::{watch, Mutex};
+use std::path::{Path, PathBuf};
+use dirs;
+use serde_json::json;
+use std::fs::{File, write};
 
 pub fn run_audio_debugger() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize the default audio host
@@ -603,10 +615,27 @@ impl AudioDriver {
         });
     }
 
-    //Returns the last 20ms of audio or sample_rate * 0.2;
-    //If sample rate is 44800 then return 896 samples.
-    //Additionally compresses using Opus.
-    pub fn get_audio(&mut self) {}
+    pub fn get_default_output_device_name() -> String {
+        let host = cpal::default_host();
+        if let Some(device) =  host.default_output_device() {
+            if let Ok(device_name) = device.name() {
+                return device_name;
+            }
+        }
+
+        return "".to_string()
+    }
+
+    pub fn get_default_input_device_name() -> String {
+        let host = cpal::default_host();
+        if let Some(device) =  host.default_input_device() {
+            if let Ok(device_name) = device.name() {
+                return device_name;
+            }
+        }
+
+        return "".to_string()
+    }
 
     //changes the input device and changes the input stream
     pub fn swap_audio_input(&mut self, input_device: &str) {}
@@ -789,4 +818,65 @@ impl AudioDriver {
             Err(e) => eprintln!("Failed to play audio: {:?}", e),
         }
     }
+
+
+    //================================================================
+    //================================================================
+    //File Functions
+    pub fn initFiles() {
+        //Init the files req for Discord 2
+        //Init the audio file that stores the audio settings
+        //location = /applocaldata/audio.config
+
+        if let Some(loc) = get_config_file() {  
+            if (!loc.exists()) {
+                if let Some(fileLoc) = loc.to_str() {
+                    println!("[AUDIO DRIVER/FS] Creating Audio Config File: {}", fileLoc);
+                } else { println!("[AUDIO DRIVER/FS] Creating Audio Config File Failed, Location Unavaliable." ); }
+
+                File::create(loc);
+
+                //Write to File Default Devices
+                //Get Default Devices
+                let default_input = AudioDriver::get_default_input_device_name();
+                let default_output = AudioDriver::get_default_output_device_name();
+                AudioDriver::writeAudioConfig(&default_input, &default_output)
+            }
+        }
+    }
+
+    pub fn writeAudioConfig(input_device: &str, output_device: &str) {
+        if let Some(loc) = get_config_file() {
+            let file_contents = json!({
+                "input_device": input_device,
+                "output_device": output_device
+            });
+
+            if let Ok(json_data) = serde_json::to_string_pretty(&file_contents) {
+                if let Err(e) = write(loc, json_data) {
+                    eprintln!("Failed to write audio config to file: {}", e);
+                }
+            } else {
+                eprintln!("Failed to serialize JSON data.");
+            }
+        } else {
+            eprintln!("Failed to get config file location.");
+        }
+    }
+}
+
+pub fn get_app_dir() -> Option<PathBuf> {
+    if let Some(mut base_dir) = dirs::data_local_dir() {
+        base_dir.push("discord2");
+        return Some(base_dir);
+    } else { return None }
+}
+
+pub fn get_config_file() -> Option<PathBuf> {
+    if let Some(mut base_dir) = dirs::data_local_dir() {
+        base_dir.push("discord2");
+        base_dir.push("audio");
+        base_dir.set_extension("conf");
+        return Some(base_dir);
+    } else { return None }
 }
