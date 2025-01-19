@@ -33,6 +33,7 @@ async function InitServerFile() {
 
 //Returns List of Severs You Are In
 export async function getServerList(): Promise<string[]> {
+    return ['localhost:7777']
     await InitServerFile();
     
     //Get File
@@ -93,20 +94,24 @@ export async function removeFromServerList(address: string) {
 export async function getServerData(Address: string) : Promise<ServerInformation|null> {
     if(Address == "") return null;
 
-    let response = await fetch(getDataServerFromAddress(Address));
-    console.log(response);
+    try {
+        let response = await fetch(getDataServerFromAddress(Address));
+        console.log(response);
 
-    if(!response.ok) return null;
+        if(!response.ok) return null;
 
-    let json = await response.json();
-    
-    let newData: ServerInformation = {
-        serverIP: Address,
-        serverName: json['server_name'],
-        users: json.users,
+        let json = await response.json();
+        
+        let newData: ServerInformation = {
+            serverIP: Address,
+            serverName: json['server_name'],
+            users: json.users,
+        }
+
+        return newData;
+    } catch (e) {
+        return null
     }
-
-    return newData;
 }
 
 export function getDisplayName(): string {

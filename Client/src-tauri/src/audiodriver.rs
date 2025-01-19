@@ -566,7 +566,7 @@ impl AudioDriver {
                                                 if let Ok(_) =
                                                     temp_socket.send_to(&temp_data, &*temp_ip).await
                                                 {
-                                                    println!("[AUDIO DRIVER/LIB] Packet Sent");
+                                                    //println!("[AUDIO DRIVER/LIB] Packet Sent");
                                                 }
                                             });
                                         }

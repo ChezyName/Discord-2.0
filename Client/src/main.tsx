@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
+import { invoke } from '@tauri-apps/api/core'
 import MainScreen from "./components/MainScreen";
 import LoginScreen, { isLoggedIn as CheckIsLoggedIn } from "./components/LoginScreen";
 
@@ -69,6 +70,13 @@ const Main = () => {
       document.head.removeChild(styleElementCustom);
     }
   }, [])
+
+  useEffect(() => {
+    if(isLoggedIn) {
+      //Tell Rust our Username
+      invoke('set_username', {username: localStorage.getItem("displayName")});
+    }
+  }, [isLoggedIn])
 
   return (
     <div style={{width: '100%', height: '100%', display: 'flex'}}>

@@ -34,19 +34,23 @@ const SidePanel = ({setServerIP, setIsConnected ,setInitServerData, setServerNam
     */
 
     //Get Init Server Data
-    let doServerGetData = async (list: string[]) => {
+    let doServerGetData = async () => {
+      let list = await getServerList();
       let myServerList: ServerInformation[] = [];
+
       for(let i = 0; i < list.length; i++){
         //console.log(list[i]);
         //console.log("Getting Data for " + list[i])
         let data: ServerInformation|null = await getServerData(list[i]);
+
         if(data !== null) myServerList.push(data);
       }
 
+      console.log("Setting Server List:", myServerList, " vs OG List:", list);
       setMyServers(myServerList);
     }
 
-    let interval = setInterval(async () => {let d = await getServerList(); doServerGetData(d);}, SERVER_SEARCH_INTERVAL);
+    let interval = setInterval(async () => {doServerGetData();}, SERVER_SEARCH_INTERVAL);
 
     return () => clearInterval(interval);
   }, []);

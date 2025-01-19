@@ -59,7 +59,7 @@ const Settings = () => {
                 value={currentTab}
                 onChange={(_,v) => {setTab(v)}}
                 aria-label="Vertical tabs example"
-                sx={{ borderRight: 1, borderColor: 'divider',
+                sx={{ borderRight: 1, borderColor: 'divider', minWidth: "80px",
                     "& .MuiTabs-flexContainer": {
                         width: '100%', height: '100%'
                     }
@@ -86,16 +86,22 @@ const Settings = () => {
                 </Button>
             </Tabs>
             <TabPanel value={currentTab} index={0}>
-                <Title>Appearence</Title>
-                <Appearence />
+                <div style={{width: "100%", height: "100%", overflow: "auto"}}>
+                    <Title>Appearence</Title>
+                    <Appearence />
+                </div>
             </TabPanel>
             <TabPanel value={currentTab} index={1}>
-                <Title>Voice & Video</Title>
-                <Voice />
+                <div style={{width: "100%", height: "100%", overflow: "auto"}}>
+                    <Title>Voice & Video</Title>
+                    <Voice />
+                </div>
             </TabPanel>
             <TabPanel value={currentTab} index={2}>
-                <Title>Copyright & Credits</Title>
-                <CopyrightNotice />
+                <div style={{width: "100%", height: "100%", overflow: "auto"}}>
+                    <Title>Copyright & Credits</Title>
+                    <CopyrightNotice />
+                </div>
             </TabPanel>
         </Box>
     )

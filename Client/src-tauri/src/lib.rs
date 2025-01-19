@@ -17,6 +17,7 @@ struct DiscordDriver {
     server_ip: String,
     user_name: String,
     is_audio_debug: bool, //If True, Cannot Send Audio, Audio is Being Tested
+    audio_settings_changed: bool, //Create new stream as audio driver has been changed
 }
 
 #[tauri::command]
@@ -54,6 +55,8 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
         let full = "username:".to_string() + &username;
         let data = full.as_bytes();
 
+        println!("[LIB] Sent Username: {}, to Server: {}", &username, &driver.server_ip);
+
         //Sending The User Data
         let temp_socket = Arc::clone(&socket);
         let temp_ip = Arc::clone(&server_ip);
@@ -83,6 +86,7 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
         drop(driver);
 
         let (sender, reciever) = watch::channel(());
+        let (sender_hardware, reciever_hardware) = watch::channel(());
 
         //Server Checks
         let disconnect_socket = Arc::clone(&socket);
@@ -130,6 +134,48 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
             }
         });
 
+        //Audio Settings Changed Loop
+        let mut settings_rx = reciever.clone();
+        let settings_audio_driver = Arc::clone(&audio_driver);
+        let settings_driver = Arc::clone(&driver_state);
+        let settings_audio_sender_socket = Arc::clone(&socket);
+        let settings_audio_sender_ip = Arc::clone(&server_ip);
+        tauri::async_runtime::spawn(async move {
+            println!("[LIB] Starting Audio Hardware Settings Change Event Watcher Subtask (AHSCEW)");
+            tokio::select! {
+                _ = async {
+                    loop {
+                        let mut driver = settings_driver.lock().await;
+
+                        //Wait for 'audio_settings_changed' to change to swap audio hardware
+                        if driver.audio_settings_changed {
+                            println!("[LIB] Audio Hardware Changed, Applying Settings NOW!");
+                            let mut audio_driver_temp = settings_audio_driver.lock().await;
+
+                            let clone_socket = Arc::clone(&settings_audio_sender_socket);
+                            let clone_ip = Arc::clone(&settings_audio_sender_ip);
+
+                            audio_driver_temp.start_audio_capture(clone_socket, clone_ip);
+                            audio_driver_temp.start_audio_player();
+
+                            drop(audio_driver_temp);
+
+                            driver.audio_settings_changed = false;
+                        }
+
+                        //Drop to allow other threads to use Driver
+                        drop(driver);
+
+                        //Sleep for ~15ms to allow other threads to use driver
+                        sleep(Duration::from_millis(15)).await;
+                    }
+                } => {}
+                _ = settings_rx.changed() => {
+                    println!("[LIB] Audio Loop (RECIEVE) Terminated");
+                }
+            }
+        });
+
         //Audio Recieve Loop
         let mut audio_rx = reciever.clone();
         let data_recieve_socket = Arc::clone(&socket);
@@ -147,7 +193,7 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
                                 let mut pcm_audio = vec![0.0; 1920]; //1920 = 48khz * 0.02 * 2
 
                                 if let Ok((len, addr)) = data_recieve_socket.recv_from(&mut buf).await {
-                                    println!("[LIB] {:?} bytes received from {:?}", len, addr);
+                                    //println!("[LIB] {:?} bytes received from {:?}", len, addr);
                                     // Opus Decode -> Play Audio
 
                                     //Need data in type of u8
@@ -156,7 +202,7 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
                                     // Decode the received Opus data into PCM samples
                                     match decoder.decode_float(Some(&vec_buf), &mut pcm_audio, false) {
                                         Ok(decoded_len) => {
-                                            println!("[AUDIO DRIVER/LIB] Decoded {} samples of audio.", decoded_len);
+                                            //println!("[AUDIO DRIVER/LIB] Decoded {} samples of audio.", decoded_len);
 
                                             //Play the recieved audio instantly
                                             let mut audio_driver_temp = recieve_audio_driver.lock().await;
@@ -226,8 +272,10 @@ fn stop_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
 #[tauri::command]
 fn set_server_ip(state: tauri::State<Arc<Mutex<DiscordDriver>>>, server_ip: String) {
     let driver_state = Arc::clone(&state);
+    println!("[LIB/SETTINGS] Waiting to Set IP");
     tauri::async_runtime::spawn(async move {
         let mut driver = driver_state.lock().await;
+        println!("[LIB/SETTINGS] Setting Server IP as {}", &server_ip);
         driver.server_ip = server_ip;
         drop(driver);
         drop(driver_state);
@@ -253,7 +301,7 @@ fn get_current_devices(state: tauri::State<Arc<Mutex<DiscordDriver>>>) -> Vec<St
 #[tauri::command]
 fn change_current_input_device(state: tauri::State<Arc<Mutex<DiscordDriver>>>, input_device: String) {
     let device = audiodriver::AudioDriver::get_current_audio_devices();
-    if device.len() > 2 {
+    if device.len() > 1 {
         let output_device = &device[1];
         audiodriver::AudioDriver::writeAudioConfig(&input_device, &output_device);
         println!("[AUDIO DRIVER/CID] Changed Input Device to: {}", &input_device)
@@ -275,6 +323,30 @@ fn change_current_output_device(state: tauri::State<Arc<Mutex<DiscordDriver>>>, 
     }
 }
 
+#[tauri::command]
+fn on_audio_settings_changed(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
+    let driver_state = Arc::clone(&state);
+    tauri::async_runtime::spawn(async move {
+        let mut driver = driver_state.lock().await;
+        driver.audio_settings_changed = true;
+        println!("[AUDIO DRIVER/SETTINGS] Settings Changed for Audio Driver, Applying Changes Shortly.");
+        drop(driver);
+        drop(driver_state);
+    });
+}
+
+#[tauri::command]
+fn set_username(state: tauri::State<Arc<Mutex<DiscordDriver>>>, username: String) {
+    let driver_state = Arc::clone(&state);
+    tauri::async_runtime::spawn(async move {
+        let mut driver = driver_state.lock().await;
+        println!("[LIB/SETTINGS] Username set as {}", &username);
+        driver.user_name = username;
+        drop(driver);
+        drop(driver_state);
+    });
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     //Init Driver
@@ -284,6 +356,7 @@ pub fn run() {
         server_ip: "127.0.0.1:3000".to_string(),
         user_name: "Username Not Set".to_string(),
         is_audio_debug: false, //if true, stops the sending of audio and instead 'tests' by pipe'ing audio into headphones
+        audio_settings_changed: false,
     }));
 
     tauri::Builder::default()
@@ -298,7 +371,9 @@ pub fn run() {
             get_output_devices,
             get_current_devices,
             change_current_input_device,
-            change_current_output_device
+            change_current_output_device,
+            on_audio_settings_changed,
+            set_username,
         ])
         .setup(|app| {
             audiodriver::AudioDriver::initFiles();

@@ -29,7 +29,8 @@ const MainScreen = () => {
   }, [serverData]);
 
   useEffect(() => {
-    invoke('set_server_ip', {server_ip: serverIP});
+    console.log("Connecting to Server:", serverIP)
+    invoke('set_server_ip', {serverIp: serverIP.replace("/^\s+|\s+$/g", "").replace("localhost","127.0.0.1")});
     if(isConnected) invoke('start_audio_loop');
     else invoke('stop_audio_loop');
   }, [isConnected])

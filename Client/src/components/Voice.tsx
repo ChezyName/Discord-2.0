@@ -3,6 +3,10 @@ import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { readTextFile, writeTextFile, exists, BaseDirectory } from '@tauri-apps/plugin-fs';
 
+function ApplyAudioChanged() {
+  invoke('on_audio_settings_changed')
+}
+
 //Loads Devices into Memory (LocalStorage) for 'Faster' Load Times
 export async function InitDevices() {
   //Place them in LocalStorage
@@ -142,6 +146,8 @@ const Voice = () => {
       invoke('change_current_output_device', {outputDevice: value});
       console.log("Changing Output Device.");
     }
+
+    ApplyAudioChanged();
   }
 
   async function onVolumeChanged(value: number, isInputDevice: boolean) {
@@ -171,6 +177,7 @@ const Voice = () => {
       baseDir: BaseDirectory.AppLocalData,
     });
     console.log("Wrote: ", JSON.stringify(volume), " to audio-volume.conf")
+    ApplyAudioChanged();
   }
 
   return (
