@@ -560,7 +560,6 @@ impl AudioDriver {
             let ring = HeapRb::<f32>::new(input_sample_rate as usize * 2);
             let (mut producer, mut consumer) = ring.split();
 
-            /*
             let stream = output_device.build_output_stream(&output_config, move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
                     for (i, sample) in data.iter_mut().enumerate() {
                         // Attempt to pop a sample from the ring buffer
@@ -577,17 +576,20 @@ impl AudioDriver {
             |err| eprintln!("[AUDIO DRIVER] Error in output stream: {}", err), 
             None
             ).expect("Failed to build output stream");
-            */
 
             output_stream_active_a.store(true, Ordering::SeqCst);
-            //stream.play().expect("Failed to start output stream");
+            stream.play().expect("Failed to start output stream");
+
+            println!("[AUDIO DRIVER] Audio Output Stream Started.");
 
             //ERROR. WHEN PUTTING THIS CODE INTO A THREAD
-            let mut temp_decoder = Decoder::new(SampleRate::Hz48000, Channels::Stereo);
-        
-            match temp_decoder {
-                Ok(mut decoder) => {
-                    tauri::async_runtime::spawn(async move {
+            tauri::async_runtime::spawn(async move {
+                println!("[AUDIO DRIVER/NET] Audio Decoder Creating...");
+                let mut temp_decoder = Decoder::new(SampleRate::Hz48000, Channels::Stereo);
+            
+                match temp_decoder {
+                    Ok(mut decoder) => {
+                        println!("[AUDIO DRIVER/NET] Waiting for Socket Data...");
                         loop {
                             let mut buf = [0; 2048];
                             let mut pcm_audio = vec![0.0; 1920]; //1920 = 48khz * 0.02 * 2
@@ -639,22 +641,21 @@ impl AudioDriver {
                                 }
                             }
                             else {
-                                println!("[AUDIO DRIVER/NET] No Packets Sent.");
+                                println!("[AUDIO DRIVER/NET] No Packets Received.");
                             }
+
 
                             if (output_stream_active_b.load(Ordering::SeqCst) == false) {
                                 println!("[AUDIO DRIVER/NET] Audio Output Stream Socket Reciever Dropped.");
                                 break;
                             }
                         }
-                    });
+                    }
+                    Err(e) => {
+                        eprintln!("[AUDIO DRIVER/LIB] Failed to create encoder: {}", e);
+                    }
                 }
-                Err(e) => {
-                    eprintln!("[AUDIO DRIVER/LIB] Failed to create encoder: {}", e);
-                }
-            }
-
-            println!("[AUDIO DRIVER] Audio Output Stream Started.");
+            });
 
             while output_stream_active_a.load(Ordering::SeqCst) {
                 std::thread::sleep(std::time::Duration::from_millis(15));
