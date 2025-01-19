@@ -25,7 +25,7 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
     println!("[LIB] Trying Connecting to Server");
 
     let driver_state = Arc::clone(&state);
-    //Audio Loop
+    //Audio Thread
     tauri::async_runtime::spawn(async move {
         println!("[LIB] Init Connecting To Server");
 
@@ -75,18 +75,18 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
         let mut audio_driver = Arc::new(Mutex::new(audiodriver::AudioDriver::default()));
         //let input_stream = audio_driver.start_audio_capture(socket.clone());
 
-        let audio_sender_socket = Arc::clone(&socket);
+        let audio_sender_socket_a = Arc::clone(&socket);
+        let audio_sender_socket_b = Arc::clone(&socket);
         let audio_sender_ip = Arc::clone(&server_ip);
 
         let mut audio_driver_locked = audio_driver.lock().await;
-        audio_driver_locked.swap_audio_ouput();
-        audio_driver_locked.start_audio_capture(audio_sender_socket, audio_sender_ip);
+        audio_driver_locked.start_audio_capture(audio_sender_socket_a, audio_sender_ip);
+        audio_driver_locked.start_audio_playback(audio_sender_socket_b);
         drop(audio_driver_locked);
 
         drop(driver);
 
         let (sender, reciever) = watch::channel(());
-        let (sender_hardware, reciever_hardware) = watch::channel(());
 
         //Server Checks
         let disconnect_socket = Arc::clone(&socket);
@@ -152,13 +152,16 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
                             println!("[LIB] Audio Hardware Changed, Applying Settings NOW!");
                             let mut audio_driver_temp = settings_audio_driver.lock().await;
 
-                            let clone_socket = Arc::clone(&settings_audio_sender_socket);
+                            let clone_socket_a = Arc::clone(&settings_audio_sender_socket);
+                            let clone_socket_b = Arc::clone(&settings_audio_sender_socket);
                             let clone_ip = Arc::clone(&settings_audio_sender_ip);
 
                             //Restart Audio Stream
                             audio_driver_temp.stop_input_stream();
-                            audio_driver_temp.start_audio_capture(clone_socket, clone_ip);
-                            audio_driver_temp.swap_audio_ouput();
+                            audio_driver_temp.stop_output_stream();
+
+                            audio_driver_temp.start_audio_capture(clone_socket_a, clone_ip);
+                            audio_driver_temp.start_audio_playback(clone_socket_b);
 
                             drop(audio_driver_temp);
 
@@ -179,6 +182,7 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
         });
 
         //Audio Recieve Loop
+        /*
         let mut audio_rx = reciever.clone();
         let data_recieve_socket = Arc::clone(&socket);
         let recieve_audio_driver = Arc::clone(&audio_driver);
@@ -195,7 +199,7 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
                                 let mut pcm_audio = vec![0.0; 1920]; //1920 = 48khz * 0.02 * 2
 
                                 if let Ok((len, addr)) = data_recieve_socket.recv_from(&mut buf).await {
-                                    //println!("[LIB] {:?} bytes received from {:?}", len, addr);
+                                    println!("[LIB] {:?} bytes received from {:?}", len, addr);
                                     // Opus Decode -> Play Audio
 
                                     //Need data in type of u8
@@ -208,7 +212,7 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
 
                                             //Play the recieved audio instantly
                                             let mut audio_driver_temp = recieve_audio_driver.lock().await;
-                                            audio_driver_temp.play_audio(&pcm_audio);
+                                            //audio_driver_temp.play_audio(&pcm_audio);
                                             drop(audio_driver_temp);
                                         }
                                         Err(e) => {
@@ -228,6 +232,7 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
                 }
             }
         });
+        */
 
         //Heartbeat - Send Data Every ~ 1 Sec to not be disconnected
         let mut heartbeat_rx = reciever.clone();
