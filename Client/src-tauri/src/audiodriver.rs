@@ -113,7 +113,7 @@ pub fn run_audio_debugger() -> Result<(), Box<dyn std::error::Error>> {
                         input_sample_rate,
                         output_sample_rate,
                         1, // Assuming mono audio
-                        ConverterType::SincBestQuality,
+                        ConverterType::Linear,
                         &buffer,
                     )
                     .expect("Resampling failed");
@@ -399,40 +399,6 @@ impl AudioDriver {
         return found_device;
     }
 
-    pub fn start_audio_player(&mut self) {
-        /*
-        let output_stream_active = self.output_stream.clone();
-        let audio_reciever = self.output_stream_receiver.clone();
-
-        tauri::async_runtime::spawn(async move {
-            let (_stream, stream_handle) = OutputStream::try_default().expect("[AUDIO DRIVER] Failed to use Audio Output");
-            let (sender, reciever) = watch::channel(());
-            println!("[AUDIO DRIVER] Audio Player Created");
-
-            let audio_output_stream_ender = reciever.clone();
-            tokio::select! {
-                _ = async {
-                    loop {
-                        while let Some(data) = audio_reciever.recv().await {
-                            //play audio data
-                            println!("audio recieved from other thread.")
-                        }
-                    }
-                } => {}
-                _ = audio_output_stream_ender.changed() => {
-                    println!("[AUDIO DRIVER] Audio Player Stopped");
-                }
-            }
-
-            //Wait for the audio stream to be stopped
-            while output_stream_active.load(Ordering::SeqCst) { std::thread::sleep(std::time::Duration::from_millis(5)); }
-
-            //End the stream
-            sender.send(()).unwrap();
-        });
-        */
-    }
-
     pub fn start_audio_capture(
         &mut self,
         socket: Arc<tokio::net::UdpSocket>,
@@ -445,22 +411,24 @@ impl AudioDriver {
 
             println!("[AUDIO DRIVER] Started Audio Recording");
 
-            // Get the input device
-            let input_device = match host.default_input_device() {
-                Some(device) => device,
-                None => {
-                    eprintln!("[AUDIO DRIVER] No input device available.");
-                    return;
-                }
+            // Get the input device (based on the Users Input)
+            let devices = AudioDriver::get_current_audio_devices();
+            let input_device_name = devices.get(0);
+            let input_device = match input_device_name {
+                Some(name) => AudioDriver::get_input_device_by_name(name),
+                None => None,
             };
-
-            // Get default input device
-            let input_device = match host.default_input_device() {
+        
+            // If input_device is still None, fall back to the host's default input device.
+            let input_device = match input_device {
                 Some(device) => device,
-                None => {
-                    eprintln!("[AUDIO DRIVER : DEBUG] No input device found.");
-                    return;
-                }
+                None => match host.default_input_device() {
+                    Some(device) => device,
+                    None => {
+                        eprintln!("[AUDIO DRIVER] No input device available.");
+                        return;
+                    }
+                },
             };
 
             // Get input config
@@ -469,6 +437,13 @@ impl AudioDriver {
             // Extract input sample rate and format
             let input_sample_rate = input_config.sample_rate.0;
             let output_sample_rate = 48000; // Use 48kHz for output
+
+            println!(
+                "[AUDIO DRIVER] Selected Device Config:\n     Input Device {};\n     Channels: {};\n     Sample Rate: {};",
+                input_device.name().unwrap_or("Unknown Device".to_string()),
+                input_config.channels,
+                input_config.sample_rate.0,
+            );
 
             // Create a ring buffer for audio samples   {Force Dual Channel}
             let ring = HeapRb::<f32>::new(input_sample_rate as usize * 2);
@@ -512,8 +487,11 @@ impl AudioDriver {
                                         buffer.push(sample); // Right channel
                                     }
                                 } else if num_channels == 2 {
-                                    // Directly copy stereo data
-                                    buffer.extend_from_slice(data);
+                                    // Data will be like the following [Left, Right, Left, Right]
+                                    // Since its Dual Channel Audio
+                                    for &sample in data {
+                                        buffer.push(sample);
+                                    }
                                 }
 
                                 // Resample if necessary
@@ -523,7 +501,7 @@ impl AudioDriver {
                                             input_sample_rate,
                                             output_sample_rate,
                                             2, // Dual-channel audio
-                                            ConverterType::SincBestQuality,
+                                            ConverterType::Linear,
                                             &buffer,
                                         )
                                         .expect("Resampling failed");
@@ -742,7 +720,7 @@ impl AudioDriver {
                                     input_sample_rate,
                                     output_sample_rate,
                                     1, // Assuming mono audio
-                                    ConverterType::SincBestQuality,
+                                    ConverterType::Linear,
                                     &buffer,
                                 )
                                 .expect("Resampling failed");
@@ -811,12 +789,8 @@ impl AudioDriver {
 
     pub fn play_audio(&mut self, pcm_audio: &[f32]) {
         let source = rodio::buffer::SamplesBuffer::new(2, 48000, pcm_audio);
-        match self
-            .output_stream_handler
-            .play_raw(source.convert_samples())
-        {
-            Ok(_) => println!("Playback started successfully."),
-            Err(e) => eprintln!("Failed to play audio: {:?}", e),
+        if let Err(e) = self.output_stream_handler.play_raw(source.convert_samples()) {
+            eprintln!("Failed to play audio: {:?}", e);
         }
     }
 

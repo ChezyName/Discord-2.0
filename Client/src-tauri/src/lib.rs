@@ -80,7 +80,6 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
 
         let mut audio_driver_locked = audio_driver.lock().await;
         audio_driver_locked.start_audio_capture(audio_sender_socket, audio_sender_ip);
-        audio_driver_locked.start_audio_player();
         drop(audio_driver_locked);
 
         drop(driver);
@@ -155,8 +154,9 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
                             let clone_socket = Arc::clone(&settings_audio_sender_socket);
                             let clone_ip = Arc::clone(&settings_audio_sender_ip);
 
+                            //Restart Audio Stream
+                            audio_driver_temp.stop_input_stream();
                             audio_driver_temp.start_audio_capture(clone_socket, clone_ip);
-                            audio_driver_temp.start_audio_player();
 
                             drop(audio_driver_temp);
 

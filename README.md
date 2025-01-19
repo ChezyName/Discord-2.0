@@ -15,10 +15,14 @@ A Full Recreation of Discord
     - Global Push-to-Talk
 - Custom Title Bar
 
-
+# Current Known Issues
 - **MEMORY LEAK:** There is a memory leak from the Rodio Audio Driver since the stream is force dropped and not managed by Rust.
     - Solution is Global Audio Driver (Tauri State Management)
-- Automatic Client-Side Diconnection
+
+- Sometimes Microphone is not 'Warmed Up' Meaning Data is Unable to be processed unless another application (like discord) touches it. Only works on Realtelk Integrated Microphone (used for Testing Purposes)
+
+
+# How it Works (Kinda)
 
 Audio goes from the following:
 - Starts at Microphone Input
