@@ -79,6 +79,7 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
         let audio_sender_ip = Arc::clone(&server_ip);
 
         let mut audio_driver_locked = audio_driver.lock().await;
+        audio_driver_locked.swap_audio_ouput();
         audio_driver_locked.start_audio_capture(audio_sender_socket, audio_sender_ip);
         drop(audio_driver_locked);
 
@@ -157,6 +158,7 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
                             //Restart Audio Stream
                             audio_driver_temp.stop_input_stream();
                             audio_driver_temp.start_audio_capture(clone_socket, clone_ip);
+                            audio_driver_temp.swap_audio_ouput();
 
                             drop(audio_driver_temp);
 
@@ -317,7 +319,7 @@ fn change_current_output_device(state: tauri::State<Arc<Mutex<DiscordDriver>>>, 
     if device.len() > 1 {
         let input_device = &device[0];
         audiodriver::AudioDriver::writeAudioConfig(&input_device, &output_device);
-        println!("[AUDIO DRIVER/CID] Changed Output Device to: {}", &output_device)
+        println!("[AUDIO DRIVER/COD] Changed Output Device to: {}", &output_device)
     } else {
         println!("[AUDIO DRIVER/COD] Failed to Read Device List (in Audio File)")
     }

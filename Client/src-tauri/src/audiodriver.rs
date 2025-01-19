@@ -8,6 +8,12 @@
  *  - Audio Input Sub File
  *  - Audio Output Sub File
  *  - Audio Debugger Sub File
+ * 
+ * 
+ * 
+ * CHANGE FROM RODIO AS AUDIO OUTPUT TO CUSTOM MADE USING CPAL
+ * SAME WAY AUDIO INPUT -> ENCODE -> PLAYED
+ * SOCKET WAIT -> DECODE -> PLAY
  */
 
 pub fn print_type_of<T>(_: &T) {
@@ -309,10 +315,12 @@ impl AudioDriver {
         for device in host.output_devices().unwrap() {
             // Check if the device supports output
             if let Ok(configs) = device.supported_input_configs() {
+                /*
                 println!(
                     "[AUDIO DRIVER] Input Device: {}",
                     device.name().unwrap_or("Unknown Device".to_string())
                 );
+                */
 
                 if let Ok(device_name) = device.name() {
                     devices.push(device_name)
@@ -320,6 +328,7 @@ impl AudioDriver {
 
                 // Optional: Print supported configurations
                 for config in configs {
+                    /*
                     println!(
                         "[AUDIO DRIVER]   Channels: {}, Sample Rates: {}-{}, Sample Format: {:?}",
                         config.channels(),
@@ -327,6 +336,7 @@ impl AudioDriver {
                         config.max_sample_rate().0,
                         config.sample_format()
                     );
+                    */
                 }
             }
         }
@@ -341,10 +351,12 @@ impl AudioDriver {
         for device in host.input_devices().unwrap() {
             // Check if the device supports output
             if let Ok(configs) = device.supported_input_configs() {
+                /*
                 println!(
                     "[AUDIO DRIVER] Input Device: {}",
                     device.name().unwrap_or("Unknown Device".to_string())
                 );
+                 */
 
                 if let Ok(device_name) = device.name() {
                     devices.push(device_name)
@@ -352,6 +364,7 @@ impl AudioDriver {
 
                 // Optional: Print supported configurations
                 for config in configs {
+                    /*
                     println!(
                         "[AUDIO DRIVER]   Channels: {}, Sample Rates: {}-{}, Sample Format: {:?}",
                         config.channels(),
@@ -359,11 +372,45 @@ impl AudioDriver {
                         config.max_sample_rate().0,
                         config.sample_format()
                     );
+                     */
                 }
             }
         }
 
         return devices
+    }
+
+    pub fn get_output_device_by_name(target: &str) -> Option<Device> {
+        let host = cpal::default_host();
+        let mut found_device = host.default_input_device();
+
+        match host.output_devices() {
+            Ok(devices) => {
+                for device in devices {
+                    // Get the device name
+                    if let Ok(name) = device.name() {
+                        if name == target {
+                            // Check if the device supports input
+                            if device.default_input_config().is_ok() {
+                                found_device = Some(device);
+                                println!("[AUDIO DRIVER] Found input device: {}", name);
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if found_device.is_none() {
+                    println!(
+                        "[AUDIO DRIVER] Input device with name '{}' not found.",
+                        target
+                    );
+                }
+            }
+            Err(err) => eprintln!("[AUDIO DRIVER] Failed to enumerate devices: {}", err),
+        }
+
+        return found_device;
     }
 
     pub fn get_input_device_by_name(target: &str) -> Option<Device> {
@@ -620,7 +667,36 @@ impl AudioDriver {
     pub fn swap_audio_input(&mut self, input_device: &str) {}
 
     //changes the ouput device
-    pub fn swap_audio_ouput(&mut self, input_device: &str) {}
+    pub fn swap_audio_ouput(&mut self) {
+        let host = cpal::default_host();
+
+        let devices = AudioDriver::get_current_audio_devices();
+        let output_device_name = devices.get(1);
+        let output_device = match output_device_name {
+            Some(name) => AudioDriver::get_output_device_by_name(name),
+            None => None,
+        };
+    
+        // If output_device is still None, fall back to the host's default output device.
+        let output_device = match output_device {
+            Some(device) => device,
+            None => match host.default_output_device() {
+                Some(device) => device,
+                None => {
+                    eprintln!("[AUDIO DRIVER] No Output devices available.");
+                    return;
+                }
+            },
+        };
+
+        println!("[AUDIO DRIVER/OUTPUT] Changing Input Device to: {}",
+        output_device.name().unwrap_or("Unknown Device".to_string()));
+
+        //Create Stream (TEMP)
+        let (_stream, stream_handle) = OutputStream::try_from_device(&output_device).expect("[AUDIO DRIVER] Failed to use Audio Output");
+        self.output_stream_handler = stream_handle;
+        std::mem::forget(_stream);
+    }
 
     pub fn audio_debugger(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         // Clone atomic flags for thread-safe sharing
@@ -789,9 +865,11 @@ impl AudioDriver {
 
     pub fn play_audio(&mut self, pcm_audio: &[f32]) {
         let source = rodio::buffer::SamplesBuffer::new(2, 48000, pcm_audio);
+        /* Trying New Way to Play Audio, Could Result in Memory Leaks....
         if let Err(e) = self.output_stream_handler.play_raw(source.convert_samples()) {
             eprintln!("Failed to play audio: {:?}", e);
         }
+        */
     }
 
 
