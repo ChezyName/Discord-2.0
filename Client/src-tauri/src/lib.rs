@@ -199,7 +199,7 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
                                 let mut pcm_audio = vec![0.0; 1920]; //1920 = 48khz * 0.02 * 2
 
                                 if let Ok((len, addr)) = data_recieve_socket.recv_from(&mut buf).await {
-                                    //println!("[LIB] {:?} bytes received from {:?}", len, addr);
+                                    println!("[LIB] {:?} bytes received from {:?}", len, addr);
                                     // Opus Decode -> Play Audio
 
                                     //Need data in type of u8
@@ -212,7 +212,7 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
 
                                             //Play the recieved audio instantly
                                             let mut audio_driver_temp = recieve_audio_driver.lock().await;
-                                            audio_driver_temp.play_audio(&pcm_audio);
+                                            //audio_driver_temp.play_audio(&pcm_audio);
                                             drop(audio_driver_temp);
                                         }
                                         Err(e) => {
