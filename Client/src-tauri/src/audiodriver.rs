@@ -534,11 +534,6 @@ impl AudioDriver {
                 },
             };
 
-            println!(
-                "[AUDIO DRIVER] Selected Device Config:\n     Output Device {};",
-                output_device.name().unwrap_or("Unknown Device".to_string())
-            );
-
             // Get output config [ERROR at LINE 538 (LINE BELOW v)]
             let output_config: StreamConfig = match output_device.default_output_config() {
                 Ok(config) => config.into(),
@@ -607,6 +602,7 @@ impl AudioDriver {
                                         match decoder.decode_float(Some(&vec_buf), &mut pcm_audio, false) {
                                             Ok(decoded_len) => {
                                                 //Change to Different Sample Rate
+                                                println!("[AUDIO DRIVER/LIB] Recieved Packets, Decoded and Pushed into Device");
                                                 if input_sample_rate != output_sample_rate {
                                                     if !pcm_audio.is_empty() {
                                                         pcm_audio = convert(
