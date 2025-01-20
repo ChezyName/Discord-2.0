@@ -1,12 +1,14 @@
-use audiopus::{coder::Decoder, Application, Bandwidth, Channels, SampleRate};
+use audiopus::{coder::Encoder, coder::Decoder, Application, Bandwidth, Channels, SampleRate};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{InputCallbackInfo, OutputCallbackInfo, Stream, StreamConfig};
 use ringbuf::{traits::*, HeapRb};
 use std::io;
 use std::sync::Arc;
-use tauri::{AppHandle, Builder};
+use tauri::{AppHandle, Builder, Emitter};
 use tokio::sync::{watch, Mutex};
 use tokio::time::{sleep, Duration};
+use std::sync::atomic::{AtomicBool, Ordering};
+use samplerate::{convert, ConverterType};
 
 mod audiodriver;
 
@@ -354,6 +356,250 @@ fn set_username(state: tauri::State<Arc<Mutex<DiscordDriver>>>, username: String
     });
 }
 
+#[tauri::command]
+fn start_audio_test(app: AppHandle, state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
+    let driver_state = Arc::clone(&state);
+    let driver_state_loop = Arc::clone(&state);
+    
+    //Audio Thread for Audio Debugging
+    tauri::async_runtime::spawn(async move {
+        let mut driver = driver_state.lock().await;
+        driver.is_audio_debug = true;
+        drop(driver);
+
+        let host = cpal::default_host();
+
+        println!("[AUDIO DRIVER/DEBUG] Started Audio Debugger");
+
+        // Get the output device (based on the Users Input)
+        let devices = audiodriver::AudioDriver::get_current_audio_devices();
+        let output_device_name = devices.get(1);
+        let output_device = match output_device_name {
+            Some(name) => audiodriver::AudioDriver::get_output_device_by_name(name),
+            None => None,
+        };
+    
+        // If output_device is still None, fall back to the host's default output device.
+        let output_device = match output_device {
+            Some(device) => device,
+            None => match host.default_output_device() {
+                Some(device) => device,
+                None => {
+                    eprintln!("[AUDIO DRIVER/DEBUG] No Output device available.");
+                    return;
+                }
+            },
+        };
+
+        // Get output config [ERROR at LINE 538 (LINE BELOW v)]
+        let output_config: StreamConfig = match output_device.default_output_config() {
+            Ok(config) => config.into(),
+            Err(err) => {
+                eprintln!("[AUDIO DRIVER/DEBUG] Failed to get default output configuration: {:?}", err);
+                return;
+            }
+        };
+
+        //====================================================================
+        //INPUT DEVICES
+        let idevices = audiodriver::AudioDriver::get_current_audio_devices();
+        let input_device_name = idevices.get(0);
+        let input_device = match input_device_name {
+            Some(name) => audiodriver::AudioDriver::get_input_device_by_name(name),
+            None => None,
+        };
+    
+        // If input_device is still None, fall back to the host's default input device.
+        let input_device = match input_device {
+            Some(device) => device,
+            None => match host.default_input_device() {
+                Some(device) => device,
+                None => {
+                    eprintln!("[AUDIO DRIVER/DEBUG] No input device available.");
+                    return;
+                }
+            },
+        };
+
+        // Get input config
+        let input_config: StreamConfig = input_device.default_input_config().unwrap().into();
+
+        let output_sample_rate = output_config.sample_rate.0;
+        let input_sample_rate = input_config.sample_rate.0;
+        let output_channels = output_config.channels;
+
+        let ring_a = HeapRb::<f32>::new(input_sample_rate as usize * 2);
+        let ring_b = HeapRb::<f32>::new(output_sample_rate as usize * 2);
+        
+        let (mut g_producer, mut g_consumer) = ring_a.split();
+        let (mut producer, mut consumer) = ring_b.split();
+
+        let stream_active = Arc::new(AtomicBool::new(true));
+
+        let input_stream_active = stream_active.clone();
+        tauri::async_runtime::spawn(async move {
+            let frame_samples: usize = (input_sample_rate as f32 * 0.02 * 2.0) as usize;
+            let mut pcm_buffer: Vec<f32> = vec![0.0; frame_samples];
+            let mut compressed_data: Vec<u8> = vec![0; frame_samples];
+
+            let input_stream = input_device
+            .build_input_stream(
+                &input_config,
+                move |data: &[f32], _: &InputCallbackInfo| {
+                    let mut buffer = Vec::new();
+                    let mut buffer_playback = Vec::new();
+
+                    // Handle mono or stereo input
+                    let num_channels = input_config.channels as usize;
+
+                    for &sample in data {
+                        if num_channels == 1 { buffer.push(sample); buffer_playback.push(sample) }
+                        buffer.push(sample); // Right channel
+                        buffer_playback.push(sample)
+                    }
+
+                    // Resample if necessary
+                    if input_sample_rate != 48000 {
+                        if !buffer.is_empty() {
+                            buffer = convert(
+                                input_sample_rate,
+                                48000,
+                                2, // Dual-channel audio
+                                ConverterType::Linear,
+                                &buffer,
+                            )
+                            .expect("Resampling failed");
+                        }
+                    }
+
+                    if input_sample_rate != output_sample_rate {
+                        if !buffer_playback.is_empty() {
+                            buffer_playback = convert(
+                                input_sample_rate,
+                                output_sample_rate,
+                                2, // Dual-channel audio
+                                ConverterType::Linear,
+                                &buffer,
+                            )
+                            .expect("Resampling failed");
+                        }
+                    }
+
+                    // Push samples to the ring buffer
+                    for &sample in buffer.iter() {
+                        producer.try_push(sample).unwrap_or_else(|_| {
+                            // Drop the oldest sample if the buffer is full
+                            consumer.try_pop();
+                        });
+                    }
+
+                    for &sample in buffer_playback.iter() {
+                        g_producer.try_push(sample);
+                    }
+
+                    // TODO: Send audio via UDP socket every 20ms
+                    // Example: Encode with Opus @ 48kHz dual channel
+                    if consumer.iter().count() >= frame_samples {
+                        //println!("[AUDIO DRIVER] Prepairing to Send 20ms of Data to Server");
+                        //println!("[AUDIO DRIVER]    or {} samples", frame_samples);
+
+                        // println!("[AUDIO DRIVER/LIB] Sending Audio Data to Server");
+
+                        // Fill the PCM buffer with 20ms worth of samples
+                        pcm_buffer.clear();
+                        for _ in 0..frame_samples {
+                            if let Some(sample) = consumer.try_pop() {
+                                pcm_buffer.push(sample as f32); // Convert f32 to i16
+                            }
+                        }
+
+                        if let Err(err) = app.emit("audio-sample", pcm_buffer.as_slice()) {
+                            eprintln!("Failed to Emit Audio Debug Data: {:?}", err);
+                        }
+                    }
+                },
+                |err| eprintln!("[AUDIO DRIVER/DEBUG] Input stream error: {}", err),
+                None,
+            )
+            .expect("[AUDIO DRIVER/DEBUG] Failed to create input stream.");
+
+            input_stream.play().expect("[AUDIO DRIVER/DEBUG] Failed to start input stream");
+
+                    
+            while input_stream_active.load(Ordering::SeqCst)
+            {
+                // Allow other threads to work
+                std::thread::sleep(std::time::Duration::from_millis(5));
+            }
+
+            drop(input_stream);
+            println!("[AUDIO DRIVER/DEBUG] Stopping Audio Debug INPUT Thread Stopped.");
+        });
+
+        let output_stream_active = stream_active.clone();
+        tauri::async_runtime::spawn(async move {
+            let output_stream = output_device.build_output_stream(&output_config, move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
+                    for (i, sample) in data.iter_mut().enumerate() {
+                        // Attempt to pop a sample from the ring buffer
+                        match g_consumer.try_pop() {
+                            Some(value) => {
+                                *sample = value; // Use the sample from the buffer
+
+                                //Send to Front-end
+                            },
+                            None => {
+                                *sample = 0.0; // Fill with silence if the buffer is empty
+                            }
+                        }
+                    }
+                }, 
+            |err| eprintln!("[AUDIO DRIVER/DEBUG] Error in output stream: {}", err), 
+            None
+            ).expect("[AUDIO DRIVER/DEBUG] Failed to build output stream");
+            
+            output_stream.play().expect("[AUDIO DRIVER/DEBUG] Failed to start output stream");
+
+                    
+            while output_stream_active.load(Ordering::SeqCst)
+            {
+                // Allow other threads to work
+                std::thread::sleep(std::time::Duration::from_millis(5));
+            }
+
+            drop(output_stream);
+            println!("[AUDIO DRIVER/DEBUG] Stopping Audio Debug OUTPUT Thread Stopped.");
+        });
+
+        let stream_stopper = stream_active.clone();
+        tauri::async_runtime::spawn(async move {
+            loop {
+                let mut driver = driver_state_loop.lock().await;
+                if !driver.is_audio_debug {
+                    stream_active.store(false, Ordering::SeqCst);
+                    println!("[AUDIO DRIVER/DEBUG] Stopping Audio Debug Threads Shortly...");
+                    break;
+                }
+
+                std::thread::sleep(std::time::Duration::from_millis(5));
+            }
+        });
+    });
+}
+
+#[tauri::command]
+fn stop_audio_test(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
+    println!("[AUDIO DRIVER/DEBUG] Stopping Audio Debug");
+
+    let driver_state = Arc::clone(&state);
+    tauri::async_runtime::spawn(async move {
+        let mut driver = driver_state.lock().await;
+        driver.is_audio_debug = false;
+        drop(driver);
+        drop(driver_state);
+        println!("[AUDIO DRIVER/DEBUG] Stopped Audio Debug");
+    });
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     //Init Driver
@@ -381,6 +627,8 @@ pub fn run() {
             change_current_output_device,
             on_audio_settings_changed,
             set_username,
+            start_audio_test,
+            stop_audio_test
         ])
         .setup(|app| {
             audiodriver::AudioDriver::initFiles();
