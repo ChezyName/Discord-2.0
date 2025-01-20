@@ -189,7 +189,6 @@ func HostVoiceServer(server *Server) {
 			server.Connections[index] = server.Connections[len(server.Connections)-1]
 			server.Connections = server.Connections[:len(server.Connections)-1]
 		} else {
-			fmt.Println("Recieved Audio Data.")
 			//fmt.Println(buffer)
 
 			//This is Audio Data
@@ -198,14 +197,12 @@ func HostVoiceServer(server *Server) {
 				if strings.Compare(item.Address.String(), addr.String()) != 0 || debugMode {
 					_, err = conn.WriteToUDP(buffer[:n], addr)
 
-					/*
-						if err != nil {
-							fmt.Println("Error sending voice data to {"+addr.String()+"}, err:", err)
-							continue
-						} else {
-							fmt.Println("Sending voice data to {" + addr.String() + "}")
-						}
-					*/
+					if err != nil {
+						fmt.Println("Error sending voice data to {"+addr.String()+"}, err:", err)
+						continue
+					} else {
+						fmt.Println("Sending voice data to {" + addr.String() + "}")
+					}
 				}
 			}
 

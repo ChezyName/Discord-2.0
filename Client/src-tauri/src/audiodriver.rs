@@ -451,11 +451,7 @@ impl AudioDriver {
                                             let temp_ip = Arc::clone(&server_ip); // Clone server_ip
                                             let temp_socket = Arc::clone(&socket); // Clone the socket
                                             tauri::async_runtime::spawn(async move {
-                                                if let Ok(_) =
-                                                    temp_socket.send_to(&temp_data, &*temp_ip).await
-                                                {
-                                                    println!("[AUDIO DRIVER/LIB] Packet Sent");
-                                                }
+                                                temp_socket.send_to(&temp_data, &*temp_ip).await
                                             });
                                         }
                                         Err(e) => {
@@ -582,7 +578,7 @@ impl AudioDriver {
                 stream.play().expect("Failed to start output stream");
 
                 while output_stream_active_a.load(Ordering::SeqCst) {
-                    std::thread::sleep(std::time::Duration::from_millis(15));
+                    std::thread::sleep(std::time::Duration::from_millis(1));
                 }
 
                 drop(stream)
@@ -602,7 +598,7 @@ impl AudioDriver {
                         let mut pcm_audio = vec![0.0; 1920]; //1920 = 48khz * 0.02 * 2
 
                         if let Ok((len, addr)) = socket.recv_from(&mut buf).await {
-                            println!("[AUDIO DRIVER/NET] {:?} bytes received from {:?}", len, addr);
+                            //println!("[AUDIO DRIVER/NET] {:?} bytes received from {:?}", len, addr);
                             // Opus Decode -> Play Audio
 
                             //Need data in type of u8
@@ -612,24 +608,29 @@ impl AudioDriver {
                             match decoder.decode_float(Some(&vec_buf), &mut pcm_audio, false) {
                                 Ok(decoded_len) => {
                                     //Change to Different Sample Rate
-                                    println!("[AUDIO DRIVER/NET] Recieved Packets, Decoded and Pushed into Device");
+                                    //println!("[AUDIO DRIVER/NET] Recieved Packets, Decoded and Pushed into Device");
                                     if input_sample_rate != output_sample_rate {
+                                        //println!("[AUDIO DRIVER/NET] Resampling Packet to {}hz from 48khz", output_sample_rate);
                                         if !pcm_audio.is_empty() {
                                             pcm_audio = convert(
-                                                input_sample_rate,
-                                                output_sample_rate,
+                                                48000,
+                                                44100,
                                                 2,
                                                 ConverterType::Linear,
                                                 &pcm_audio,
                                             )
                                             .expect("Resampling failed");
                                         }
+                                        else {
+                                            println!("[AUDIO DRIVER/NET] Failed to Resample, No PCM Audio Given");
+                                        }
                                     }
 
                                     //Put in Ring Buffer
                                     //If Mono Output, Skip Every Other [L, R, L, R, ...]
-                                    for (i, sample) in pcm_audio.iter().take(decoded_len).enumerate() {
+                                    for (i, sample) in pcm_audio.iter().enumerate() {
                                         // Convert sample to f32 and push to the producer
+                                        //println!("[AUDIO DRIVER/NET] Pushing {} Samples into Buffer.", channels);
                                         if (channels == 2) {
                                             if let Err(e) = producer.try_push(*sample) {
                                                 eprintln!("[LIB] Failed to push audio sample to ring buffer: {:?}", e);
@@ -646,9 +647,6 @@ impl AudioDriver {
                                     eprintln!("[AUDIO DRIVER/LIB] Failed to decode Opus data: {:?}", e);
                                 }
                             }
-                        }
-                        else {
-                            println!("[AUDIO DRIVER/NET] No Packets Received.");
                         }
                     }
                 }
