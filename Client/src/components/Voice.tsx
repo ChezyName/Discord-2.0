@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { readTextFile, writeTextFile, exists, BaseDirectory } from '@tauri-apps/plugin-fs';
 import { listen } from '@tauri-apps/api/event';
-import { AudioVisualizer } from 'react-audio-visualize';
+import AudioVisualizer from './AudioVisualizer';
 
 function ApplyAudioChanged() {
   invoke('on_audio_settings_changed')
@@ -66,8 +66,7 @@ const Voice = () => {
   const [InputVolume, setInputVolume] = useState(0);
   const [OutputVolume, setOutputVolume] = useState(0);
 
-  const [audioBlob, setAudioBlob] = useState(new Blob([], {type: "audio/wav"}))
-  const visualizerRef = useRef<HTMLCanvasElement>(null)
+  const [audioBlob, setAudioBlob] = useState<Float32Array | null>(null);
 
   useEffect(() => {
     setAudioTest(false);
@@ -192,11 +191,10 @@ const Voice = () => {
     ApplyAudioChanged();
   }
 
-  listen<any>('audio-sample', (event) => {
+  listen<Float32Array>('audio-sample', (event) => {
     //pcm data in 20ms @ 4800khz
-    let blob = createWavBlob(event.payload as number[])
-    console.log("Audio Debbuger: ", event.payload, typeof event.payload, blob);
-    setAudioBlob(blob);
+    //console.log("Audio Debbuger: ", event.payload, typeof event.payload);
+    setAudioBlob(event.payload);
   });
 
   return (
@@ -243,64 +241,10 @@ const Voice = () => {
           {isAudioTest ? "Stop Checking" : "Let's Check"}
         </Button>
 
-        {audioBlob && (
-          <AudioVisualizer
-            ref={visualizerRef}
-            blob={audioBlob}
-            width={500}
-            height={75}
-            barWidth={1}
-            gap={0}
-            barColor={'#f76565'}
-          />
-        )}
+        <AudioVisualizer pcmData={audioBlob}/>
       </div>
     </>
   );
 };
 
 export default Voice;
-
-function createWavBlob(pcmData: number[], sampleRate = 48000, numChannels = 2) {
-  const byteRate = sampleRate * numChannels * 2; // 16-bit audio (2 bytes per sample)
-  const blockAlign = numChannels * 2;
-  const wavHeaderSize = 44;
-
-  // WAV Header
-  const wavHeader = new ArrayBuffer(wavHeaderSize);
-  const view = new DataView(wavHeader);
-
-  // "RIFF" chunk descriptor
-  view.setUint32(0, 0x52494646, false); // "RIFF"
-  view.setUint32(4, 36 + pcmData.length * 2, true); // File size - 8 bytes
-  view.setUint32(8, 0x57415645, false); // "WAVE"
-
-  // "fmt " sub-chunk
-  view.setUint32(12, 0x666d7420, false); // "fmt "
-  view.setUint32(16, 16, true); // Subchunk1Size (16 for PCM)
-  view.setUint16(20, 1, true); // AudioFormat (1 = PCM)
-  view.setUint16(22, numChannels, true); // NumChannels
-  view.setUint32(24, sampleRate, true); // SampleRate
-  view.setUint32(28, byteRate, true); // ByteRate
-  view.setUint16(32, blockAlign, true); // BlockAlign
-  view.setUint16(34, 16, true); // BitsPerSample
-
-  // "data" sub-chunk
-  view.setUint32(36, 0x64617461, false); // "data"
-  view.setUint32(40, pcmData.length * 2, true); // Subchunk2Size
-
-  // PCM Data (convert from Float32Array to Int16Array)
-  const pcm16 = new Int16Array(pcmData.length);
-  for (let i = 0; i < pcmData.length; i++) {
-      // Clamp PCM data to [-1, 1] and scale to 16-bit range
-      pcm16[i] = Math.max(-1, Math.min(1, pcmData[i])) * 0x7FFF;
-  }
-
-  // Combine header and PCM data
-  const wavData = new Uint8Array(wavHeaderSize + pcm16.length * 2);
-  wavData.set(new Uint8Array(wavHeader), 0);
-  wavData.set(new Uint8Array(pcm16.buffer), wavHeaderSize);
-
-  // Create Blob
-  return new Blob([wavData], { type: "audio/wav" });
-}
