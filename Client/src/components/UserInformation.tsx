@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Box, Button, ButtonProps, Typography, styled } from '@mui/material';
-import { getTauriVersion } from '@tauri-apps/api/app';
+import { getVersion  } from '@tauri-apps/api/app';
 
 import { getDisplayName } from './FunctionLibrary';
 
@@ -24,12 +24,12 @@ const UserInformation = () => {
 
     //Init
     useEffect(() => {
-        let getVersion = async () => {
-            let version = await getTauriVersion();
+        let getAppVersion = async () => {
+            let version = await getVersion();
             setVersion(version)
         }
 
-        getVersion();
+        getAppVersion();
     }, [])
 
     return (

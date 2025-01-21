@@ -359,6 +359,9 @@ impl AudioDriver {
             let ring = HeapRb::<f32>::new(input_sample_rate as usize * 2);
             let (mut producer, mut consumer) = ring.split();
 
+            let volumes = AudioDriver::get_current_audio_volumes();
+            let input_volume: f32 = *volumes.get(0).unwrap_or(&100.0) / 100.0;
+
             //Encode the Audio with Opus
             let mut temp_encoder =
                 Encoder::new(SampleRate::Hz48000, Channels::Stereo, Application::Voip);
@@ -393,14 +396,14 @@ impl AudioDriver {
                                 if num_channels == 1 {
                                     // Convert mono to stereo
                                     for &sample in data {
-                                        buffer.push(sample); // Left channel
-                                        buffer.push(sample); // Right channel
+                                        buffer.push(sample * input_volume); // Left channel
+                                        buffer.push(sample * input_volume); // Right channel
                                     }
                                 } else if num_channels == 2 {
                                     // Data will be like the following [Left, Right, Left, Right]
                                     // Since its Dual Channel Audio
                                     for &sample in data {
-                                        buffer.push(sample);
+                                        buffer.push(sample * input_volume);
                                     }
                                 }
 
@@ -556,13 +559,16 @@ impl AudioDriver {
             let ring = HeapRb::<f32>::new(input_sample_rate as usize * 2);
             let (mut producer, mut consumer) = ring.split();
 
+            let volumes = AudioDriver::get_current_audio_volumes();
+            let output_volume: f32 = *volumes.get(1).unwrap_or(&100.0) / 100.0;
+
             tauri::async_runtime::spawn(async move {
                 let stream = output_device.build_output_stream(&output_config, move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
                         for (i, sample) in data.iter_mut().enumerate() {
                             // Attempt to pop a sample from the ring buffer
                             match consumer.try_pop() {
                                 Some(value) => {
-                                    *sample = value; // Use the sample from the buffer
+                                    *sample = value * output_volume; // Use the sample from the buffer
                                 },
                                 None => {
                                     *sample = 0.0; // Fill with silence if the buffer is empty
