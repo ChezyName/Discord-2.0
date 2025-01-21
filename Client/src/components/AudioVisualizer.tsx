@@ -13,7 +13,7 @@ export default function AudioVisualizer({ pcmData }: AudioVisualizerProps) {
   const [amplitude, setAmplitude] = useState<number>(0); // Current amplitude percentage
 
   useEffect(() => {
-    if (!pcmData) return;
+    if (!pcmData) { setAmplitude(0); return; }
   
     const framesPerSlice = pcmData.length / 2; // Number of left-right pairs
     const frameDuration = 20 / framesPerSlice; // Duration per frame in ms

@@ -928,6 +928,38 @@ impl AudioDriver {
         // Return an empty vector if anything goes wrong
         vec![]
     }
+
+    // [0] = input volume
+    // [1] = output volume
+    pub fn get_current_audio_volumes() -> Vec<f32> {
+        // Attempt to open the file
+        if let Some(loc) = get_volume_config_file() {
+            if let Ok(file) = File::open(loc) {
+                let reader = BufReader::new(file);
+
+                // Attempt to parse JSON
+                if let Ok(json_data) = serde_json::from_reader::<_, Value>(reader) {
+                    let input_volume: f32 = json_data["input"]
+                    .as_f64()
+                    .map(|v| v as f32)
+                    .unwrap_or(100.0);
+                
+                    let output_volume: f32 = json_data["output"]
+                        .as_f64()
+                        .map(|v| v as f32)
+                        .unwrap_or(100.0);
+
+                    println!("[AUDIO DRVIER] Input Volume: {}, Output Volume: {}, Raw Data: {}", input_volume, output_volume, json_data["output"]);
+                    return vec![input_volume, output_volume];
+                } else { println!("FILE CANT BE READ"); }
+            } else { println!("FILE NOT FOUND"); }
+        }
+        else {
+            println!("CONFIG NOT FOUND");
+        }
+
+        vec![100.0, 100.0]
+    }
 }
 
 pub fn get_app_dir() -> Option<PathBuf> {
@@ -941,6 +973,15 @@ pub fn get_config_file() -> Option<PathBuf> {
     if let Some(mut base_dir) = dirs::data_local_dir() {
         base_dir.push("discord2");
         base_dir.push("audio");
+        base_dir.set_extension("conf");
+        return Some(base_dir);
+    } else { return None }
+}
+
+pub fn get_volume_config_file() -> Option<PathBuf> {
+    if let Some(mut base_dir) = dirs::data_local_dir() {
+        base_dir.push("discord2");
+        base_dir.push("audio-volume");
         base_dir.set_extension("conf");
         return Some(base_dir);
     } else { return None }

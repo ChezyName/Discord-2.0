@@ -5,8 +5,12 @@ import { readTextFile, writeTextFile, exists, BaseDirectory } from '@tauri-apps/
 import { listen } from '@tauri-apps/api/event';
 import AudioVisualizer from './AudioVisualizer';
 
-function ApplyAudioChanged() {
+function ApplyAudioChanged(isAudioDebbuging: boolean) {
+  if(isAudioDebbuging) invoke('stop_audio_test');
+  
   invoke('on_audio_settings_changed')
+
+  if(isAudioDebbuging) invoke('start_audio_test');
 }
 
 //Loads Devices into Memory (LocalStorage) for 'Faster' Load Times
@@ -158,7 +162,7 @@ const Voice = () => {
       console.log("Changing Output Device.");
     }
 
-    ApplyAudioChanged();
+    ApplyAudioChanged(isAudioTest);
   }
 
   async function onVolumeChanged(value: number, isInputDevice: boolean) {
@@ -188,7 +192,7 @@ const Voice = () => {
       baseDir: BaseDirectory.AppLocalData,
     });
     console.log("Wrote: ", JSON.stringify(volume), " to audio-volume.conf")
-    ApplyAudioChanged();
+    ApplyAudioChanged(isAudioTest);
   }
 
   listen<Float32Array>('audio-sample', (event) => {
@@ -214,7 +218,8 @@ const Voice = () => {
           </Select>
           <Slider aria-label="Small" valueLabelDisplay="auto"
             min={0} max={100} value={InputVolume}
-            onChange={(_,n) => {if(typeof n === 'number') onVolumeChanged(n, true)}}
+            onChange={(_, n) => {if(typeof n === 'number') setInputVolume(n)}}
+            onChangeCommitted={(_,n) => {if(typeof n === 'number') onVolumeChanged(n, true)}}
           />
         </div>
 
@@ -231,7 +236,8 @@ const Voice = () => {
           </Select>
           <Slider aria-label="Small" valueLabelDisplay="auto"
             min={0} max={200} value={OutputVolume}
-            onChange={(_,n) => {if(typeof n === 'number') onVolumeChanged(n, false)}}
+            onChange={(_, n) => {if(typeof n === 'number') setOutputVolume(n)}}
+            onChangeCommitted={(_,n) => {if(typeof n === 'number') onVolumeChanged(n, false)}}
           />
         </div>
       </div>
@@ -241,7 +247,7 @@ const Voice = () => {
           {isAudioTest ? "Stop Checking" : "Let's Check"}
         </Button>
 
-        <AudioVisualizer pcmData={audioBlob}/>
+        <AudioVisualizer pcmData={isAudioTest ? audioBlob : null}/>
       </div>
     </>
   );

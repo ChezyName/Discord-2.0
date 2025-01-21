@@ -424,9 +424,14 @@ fn start_audio_test(app: AppHandle, state: tauri::State<Arc<Mutex<DiscordDriver>
         // Get input config
         let input_config: StreamConfig = input_device.default_input_config().unwrap().into();
 
+        let volumes = audiodriver::AudioDriver::get_current_audio_volumes();
+
         let output_sample_rate = output_config.sample_rate.0;
         let input_sample_rate = input_config.sample_rate.0;
         let output_channels = output_config.channels;
+
+        let input_volume: f32 = *volumes.get(0).unwrap_or(&100.0) / 100.0;
+        let output_volume: f32 = *volumes.get(1).unwrap_or(&100.0) / 100.0;
 
         let ring_a = HeapRb::<f32>::new(input_sample_rate as usize * 2);
         let ring_b = HeapRb::<f32>::new(output_sample_rate as usize * 2);
@@ -451,11 +456,24 @@ fn start_audio_test(app: AppHandle, state: tauri::State<Arc<Mutex<DiscordDriver>
 
                     // Handle mono or stereo input
                     let num_channels = input_config.channels as usize;
+                    let num_channels_out = output_config.channels as usize;
+
+                    let mut skip_next = false; 
 
                     for &sample in data {
-                        if num_channels == 1 { buffer.push(sample); buffer_playback.push(sample) }
-                        buffer.push(sample); // Right channel
-                        buffer_playback.push(sample)
+                        if num_channels == 1 {
+                            buffer.push(sample * input_volume);
+                            
+                            if num_channels_out == 2 {
+                                if !skip_next {
+                                    buffer_playback.push(sample * input_volume);
+                                }
+                                skip_next = !skip_next; // Toggle skipping for the next iteration
+                            }
+                        }
+                    
+                        buffer.push(sample * input_volume);
+                        buffer_playback.push(sample * input_volume);
                     }
 
                     // Resample if necessary
@@ -543,12 +561,10 @@ fn start_audio_test(app: AppHandle, state: tauri::State<Arc<Mutex<DiscordDriver>
                         // Attempt to pop a sample from the ring buffer
                         match g_consumer.try_pop() {
                             Some(value) => {
-                                *sample = value; // Use the sample from the buffer
-
-                                //Send to Front-end
+                                *sample = value * output_volume;
                             },
                             None => {
-                                *sample = 0.0; // Fill with silence if the buffer is empty
+                                *sample = 0.0;
                             }
                         }
                     }
