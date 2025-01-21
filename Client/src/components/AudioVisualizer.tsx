@@ -64,7 +64,8 @@ export default function AudioVisualizer({ pcmData }: AudioVisualizerProps) {
         display: 'flex', 
         flexDirection: 'row',
         gap: '8px',
-        alignItems: "stretch"
+        alignItems: "stretch",
+        marginLeft: "12px",
       }}
     >
       {Array.from({ length: ProgressBarsCount }).map((_, index) => (
@@ -72,9 +73,11 @@ export default function AudioVisualizer({ pcmData }: AudioVisualizerProps) {
           key={index} 
           className="progress-bar-box"
           sx={{
-            backgroundColor: (amplitude >= (index + 1) ? "green" : "darkgreen"),
+            backgroundColor: (amplitude >= (index + 1) ? "var(--Primary)" : "var(--Secondary)"),
             width: '100%',
             height: "100%",
+            borderRadius: "25px",
+            border: "2px solid var(--Outlines)"
           }}
         ></Box>
       ))}
