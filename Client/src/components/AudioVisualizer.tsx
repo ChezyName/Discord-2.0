@@ -1,72 +1,83 @@
 import React, { useEffect, useState } from "react";
 import Box from "@mui/material/Box";
+import Slider from "@mui/material/Slider";
 
 interface AudioVisualizerProps {
   pcmData: Float32Array | null; // PCM audio data slice
 }
 
-const AudioBarVisualizer: React.FC<AudioVisualizerProps> = ({ pcmData }) => {
-  const [barHeights, setBarHeights] = useState<number[]>(Array(30).fill(0)); // 30 bars for visualization
-  const [barColors, setBarColors] = useState<string[]>(Array(30).fill("#555")); // Initial color
+const marks = Array.from({ length: 11 }, (_, i) => ({
+  value: i * 10,
+  label: `${-60 + i * 6} dB`,
+}));
+
+const ProgressBarsCount = 20;
+const Min_dB = -100;
+const Max_dB = 0;
+
+export default function AudioVisualizer({ pcmData }: AudioVisualizerProps) {
+  const [amplitude, setAmplitude] = useState<number>(0); // Current amplitude percentage
 
   useEffect(() => {
     if (!pcmData) return;
+  
+    const framesPerSlice = pcmData.length / 2; // Number of left-right pairs
+    const frameDuration = 20 / framesPerSlice; // Duration per frame in ms
+  
+    let currentFrame = 0;
+  
+    const processFrames = () => {
+      if (currentFrame >= framesPerSlice) return; // End of PCM slice
+  
+      // Calculate average amplitude for the current frame
+      const left = pcmData[currentFrame * 2];
+      const right = pcmData[currentFrame * 2 + 1];
+      const averageAmplitude = (Math.abs(left) + Math.abs(right)) / 2;
+  
+      // Convert amplitude to dB, ensure non-zero to avoid log issues
+      const dB = 20 * Math.log10(Math.max(averageAmplitude, 0.0001));
 
-    const framesPerBar = Math.floor(pcmData.length / barHeights.length); // Number of samples per bar
-    const updatedHeights: number[] = [];
-    const updatedColors: string[] = [];
-
-    for (let i = 0; i < barHeights.length; i++) {
-      const start = i * framesPerBar;
-      const end = start + framesPerBar;
-
-      const slice = pcmData.slice(start, end); // Slice of PCM data for this bar
-      const avgAmplitude = slice.reduce((sum, val) => sum + Math.abs(val), 0) / slice.length;
-
-      const dB = 20 * Math.log10(Math.max(avgAmplitude, 0.00001)); // Convert to dB
-      const height = Math.max((dB + 100) / 100, 0); // Normalize to [0, 1] range
-      updatedHeights.push(height);
-
-      // Assign color based on dB range
-      if (dB >= -20) {
-        updatedColors.push("lime");
-      } else if (dB >= -60) {
-        updatedColors.push("yellow");
-      } else {
-        updatedColors.push("red");
-      }
-    }
-
-    setBarHeights(updatedHeights);
-    setBarColors(updatedColors);
+      const progress = (dB - Min_dB) / (Max_dB - Min_dB);
+      setAmplitude(Math.round(ProgressBarsCount * progress));
+  
+      // Update amplitude (scale dB to match slider range)
+      //setAmplitude(dB);
+  
+      // Move to the next frame
+      currentFrame++;
+      setTimeout(processFrames, frameDuration); // Process the next frame after the delay
+    };
+  
+    processFrames(); // Start processing the PCM slice
+  
+    return () => {
+      // Cleanup: Stop processing if the component unmounts
+      currentFrame = framesPerSlice;
+    };
   }, [pcmData]);
+  
 
   return (
-    <Box
-      sx={{
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "flex-end",
-        height: 100,
-        width: "100%",
-        background: "#2c2f33",
-        padding: "10px 0",
-        gap: "2px",
+    <Box 
+      sx={{ 
+        width: '100%', 
+        display: 'flex', 
+        flexDirection: 'row',
+        gap: '8px',
+        alignItems: "stretch"
       }}
     >
-      {barHeights.map((height, index) => (
-        <Box
-          key={index}
+      {Array.from({ length: ProgressBarsCount }).map((_, index) => (
+        <Box 
+          key={index} 
+          className="progress-bar-box"
           sx={{
-            width: "4px",
-            height: `${height * 100}%`, // Scale height dynamically
-            backgroundColor: barColors[index],
-            borderRadius: "2px",
+            backgroundColor: (amplitude >= (index + 1) ? "green" : "darkgreen"),
+            width: '100%',
+            height: "100%",
           }}
-        />
+        ></Box>
       ))}
     </Box>
   );
-};
-
-export default AudioBarVisualizer;
+}

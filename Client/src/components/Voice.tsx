@@ -236,7 +236,7 @@ const Voice = () => {
         </div>
       </div>
 
-      <div style={{ width: "100%", height: "auto", display: "flex" }}>
+      <div style={{ width: "100%", height: "auto", display: "flex", minHeight: "25px", alignItems: "stretch" }}>
         <Button onClick={() => { setAudioTest(!isAudioTest); }} sx={{ border: "1px solid var(--Outlines)" }}>
           {isAudioTest ? "Stop Checking" : "Let's Check"}
         </Button>
