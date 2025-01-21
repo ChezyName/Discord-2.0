@@ -1,5 +1,5 @@
 import { Button, MenuItem, Select, Slider, Typography } from '@mui/material';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { readTextFile, writeTextFile, exists, BaseDirectory } from '@tauri-apps/plugin-fs';
 import { listen } from '@tauri-apps/api/event';
@@ -214,7 +214,7 @@ const Voice = () => {
           </Select>
           <Slider aria-label="Small" valueLabelDisplay="auto"
             min={0} max={100} value={InputVolume}
-            onChange={(e,n) => {if(typeof n === 'number') onVolumeChanged(n, true)}}
+            onChange={(_,n) => {if(typeof n === 'number') onVolumeChanged(n, true)}}
           />
         </div>
 
@@ -231,7 +231,7 @@ const Voice = () => {
           </Select>
           <Slider aria-label="Small" valueLabelDisplay="auto"
             min={0} max={200} value={OutputVolume}
-            onChange={(e,n) => {if(typeof n === 'number') onVolumeChanged(n, false)}}
+            onChange={(_,n) => {if(typeof n === 'number') onVolumeChanged(n, false)}}
           />
         </div>
       </div>

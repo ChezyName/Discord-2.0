@@ -1,15 +1,9 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Box from "@mui/material/Box";
-import Slider from "@mui/material/Slider";
 
 interface AudioVisualizerProps {
   pcmData: Float32Array | null; // PCM audio data slice
 }
-
-const marks = Array.from({ length: 11 }, (_, i) => ({
-  value: i * 10,
-  label: `${-60 + i * 6} dB`,
-}));
 
 const ProgressBarsCount = 20;
 const Min_dB = -100;
