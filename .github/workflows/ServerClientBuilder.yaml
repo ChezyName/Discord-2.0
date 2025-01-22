@@ -37,6 +37,9 @@ jobs:
           node-version: lts/*
           cache: 'yarn' # Set this to npm, yarn or pnpm.
 
+      - name: Change to client directory
+        run: cd Client
+
       - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable # Set this to dtolnay/rust-toolchain@nightly
         with:
@@ -49,8 +52,9 @@ jobs:
           workspaces: './Client/src-tauri -> target'
 
       - name: install frontend dependencies
-        # If you don't have `beforeBuildCommand` configured you may want to build your frontend here too.
-        run: yarn install # change this to npm or pnpm depending on which one you use.
+        run: |
+          cd Client
+          yarn install # change this to npm or pnpm depending on which one you use.
 
       - uses: tauri-apps/tauri-action@v0
         env:
@@ -79,11 +83,17 @@ jobs:
         with:
           go-version: '1.20'
 
+      - name: Initialize Go module
+        run: |
+          cd Server
+          go mod init discord-server || true
+          go mod tidy
+
       - name: Build Go server
         run: |
           mkdir -p dist
           VERSION=$(echo "${{ github.event.head_commit.message }}" | grep -o 'v[0-9]*\.[0-9]*\.[0-9]*')
-          go build -o "dist/Discord 2.0 Server ${VERSION}" /Server/main.go
+          go build -o "dist/Discord 2.0 Server ${VERSION}" main.go
 
       - name: Create release
         id: create_release
