@@ -27,8 +27,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          path: Client
 
       # Install dependencies (Ubuntu only)
       - name: Install Tauri dependencies (ubuntu only)
@@ -66,6 +64,7 @@ jobs:
 
       - name: install frontend dependencies
         run: |
+          cd Client
           npm install # Changed from yarn to npm.
 
       - name: Build app
@@ -88,7 +87,7 @@ jobs:
     steps:
       # Checkout only the /Server folder and ignore other parts of the repository
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           # Only fetch the 'Server' folder by specifying the path
           path: Server
@@ -101,12 +100,10 @@ jobs:
       - name: Initialize Go module in Server
         run: |
           cd Server
-          go mod init discord-server || true
           go mod tidy
 
       - name: Build Go server
         run: |
-          cd Server
           mkdir -p dist
           VERSION=$(echo "${{ github.event.head_commit.message }}" | grep -o 'v[0-9]*\.[0-9]*\.[0-9]*')
           go build -o "dist/Discord 2.0 Server ${VERSION}" main.go
