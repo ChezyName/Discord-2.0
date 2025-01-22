@@ -12,6 +12,7 @@ on:
 env:
   AUTH_GITHUB_ID: ${{ secrets.AUTH_GITHUB_ID }}
   AUTH_GITHUB_SECRET: ${{ secrets.AUTH_GITHUB_SECRET }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
   release:
@@ -61,7 +62,7 @@ jobs:
         with:
           node-version: lts/*
           cache: npm
-          cache-dependency-path: '/Client/package-lock.json'
+          cache-dependency-path: '/package-lock.json'
 
 
       - name: install Rust stable
