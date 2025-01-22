@@ -68,9 +68,6 @@ jobs:
           node-version: lts/*
           cache: npm
 
-      - name: Change to client directory
-        run: cd Client
-
       - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
