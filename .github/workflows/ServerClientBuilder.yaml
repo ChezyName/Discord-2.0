@@ -10,7 +10,7 @@ on:
 
 jobs:
   release:
-    if: contains(github.event.head_commit.message, 'release v') && matches(github.event.head_commit.message, 'release v\\d+\\.\\d+\\.\\d+')
+    if: contains(github.event.head_commit.message, 'release v')
     strategy:
       fail-fast: false
       matrix:
@@ -67,7 +67,7 @@ jobs:
 
   build-and-release-go:
     name: Build and Release Go Server
-    if: contains(github.event.head_commit.message, 'release v') && matches(github.event.head_commit.message, 'release v\\d+\\.\\d+\\.\\d+')
+    if: contains(github.event.head_commit.message, 'release v')
     runs-on: ubuntu-latest
 
     steps:
