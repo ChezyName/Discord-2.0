@@ -7,12 +7,17 @@ on:
       - main
     tags:
       - 'v*'
+    paths-ignore:
+      - 'Images/**'
 env:
   AUTH_GITHUB_ID: ${{ secrets.AUTH_GITHUB_ID }}
   AUTH_GITHUB_SECRET: ${{ secrets.AUTH_GITHUB_SECRET }}
 
 jobs:
   release:
+    defaults:
+      run:
+        working-directory: ./Client
     if: contains(github.event.head_commit.message, 'release v')
     strategy:
       fail-fast: false
@@ -41,22 +46,18 @@ jobs:
         run: |
           brew install cmake opus
 
-      - name: DEBUG
-        run: |
-          ls
-          cd Client
-          ls
-
       # Install dependencies (Windows only)
       - name: install dependencies (Windows only)
         if: matrix.os == 'windows-latest'
         run: |
           choco install cmake asio4all
+          
       - name: setup node
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
           cache: npm
+
 
       - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -85,6 +86,9 @@ jobs:
           args: ${{ matrix.target && format('--target {0}', matrix.target) }}
 
   build-and-release-go:
+    defaults:
+      run:
+        working-directory: ./Client
     name: Build and Release Go Server
     if: contains(github.event.head_commit.message, 'release v')
     runs-on: ubuntu-latest
@@ -101,8 +105,6 @@ jobs:
 
       - name: Initialize Go module in Server
         run: |
-          cd Server
-          ls
           go mod tidy
 
       - name: Build Go server
