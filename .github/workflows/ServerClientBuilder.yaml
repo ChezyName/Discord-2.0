@@ -41,6 +41,12 @@ jobs:
         run: |
           brew install cmake opus
 
+      - name: DEBUG
+        run: |
+          ls
+          cd Client
+          ls
+
       # Install dependencies (Windows only)
       - name: install dependencies (Windows only)
         if: matrix.os == 'windows-latest'
@@ -64,9 +70,7 @@ jobs:
 
       - name: install frontend dependencies
         run: |
-          cd Client
-          ls
-          #npm install # Changed from yarn to npm.
+          npm install
 
       - name: Build app
         uses: tauri-apps/tauri-action@v0
@@ -89,9 +93,6 @@ jobs:
       # Checkout only the /Server folder and ignore other parts of the repository
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          # Only fetch the 'Server' folder by specifying the path
-          path: Server
 
       - name: Set up Go environment
         uses: actions/setup-go@v4
@@ -102,7 +103,7 @@ jobs:
         run: |
           cd Server
           ls
-          #go mod tidy
+          go mod tidy
 
       - name: Build Go server
         run: |
