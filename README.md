@@ -81,6 +81,10 @@ Where
 Honestly, I don't think Contributing is worth it for someone like you since the code is pretty rough, Especially on the Rust
 side since this is one of my first times using Rust. So if you wanna use this code, good luck.
 
+**NOTE!**
+
+If you are using Windows, you need [ASIO](https://think-async.com/Asio/) and [CMake](https://cmake.org/download/) on your machine configured in order to use CPAL (Cross-Platform-Audio-Library),
+I have no clue about any other device but it most likely requires something similar.
 
 The files on the front end in `/Client/src/components` are self-explanatory but the Rust code is not as such
 
