@@ -40,6 +40,7 @@ use dirs;
 use serde_json::{json, Value};
 use std::fs::{File, write};
 use std::io::{self, BufReader};
+use std::fs;
 
 pub fn run_audio_debugger() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize the default audio host
@@ -971,6 +972,7 @@ impl AudioDriver {
 pub fn get_app_dir() -> Option<PathBuf> {
     if let Some(mut base_dir) = dirs::data_local_dir() {
         base_dir.push("discord2");
+        fs::create_dir_all(&base_dir);
         return Some(base_dir);
     } else { return None }
 }
@@ -978,6 +980,7 @@ pub fn get_app_dir() -> Option<PathBuf> {
 pub fn get_config_file() -> Option<PathBuf> {
     if let Some(mut base_dir) = dirs::data_local_dir() {
         base_dir.push("discord2");
+        fs::create_dir_all(&base_dir);
         base_dir.push("audio");
         base_dir.set_extension("conf");
         return Some(base_dir);
@@ -987,6 +990,7 @@ pub fn get_config_file() -> Option<PathBuf> {
 pub fn get_volume_config_file() -> Option<PathBuf> {
     if let Some(mut base_dir) = dirs::data_local_dir() {
         base_dir.push("discord2");
+        fs::create_dir_all(&base_dir);
         base_dir.push("audio-volume");
         base_dir.set_extension("conf");
         return Some(base_dir);

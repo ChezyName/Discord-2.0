@@ -16,7 +16,7 @@ function getDataServerFromAddress(address: string): URL{
 }
 
 export function getMessageGatewayFromAddress(address: string): URL {
-    return new URL(address) //getDataServerFromAddress(address);
+    return getDataServerFromAddress(address);
 }
 
 //If File Does Not Exist, Create
@@ -33,7 +33,6 @@ async function InitServerFile() {
 
 //Returns List of Severs You Are In
 export async function getServerList(): Promise<string[]> {
-    return ['localhost:7777']
     await InitServerFile();
     
     //Get File
