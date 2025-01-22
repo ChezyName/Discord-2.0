@@ -65,7 +65,8 @@ jobs:
       - name: install frontend dependencies
         run: |
           cd Client
-          npm install # Changed from yarn to npm.
+          ls
+          #npm install # Changed from yarn to npm.
 
       - name: Build app
         uses: tauri-apps/tauri-action@v0
@@ -100,7 +101,8 @@ jobs:
       - name: Initialize Go module in Server
         run: |
           cd Server
-          go mod tidy
+          ls
+          #go mod tidy
 
       - name: Build Go server
         run: |
