@@ -25,11 +25,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Install dependencies (Ubuntu only)
       - name: install dependencies (ubuntu only)
-        if: matrix.platform == 'ubuntu-22.04'
+        if: matrix.os == 'ubuntu-20.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf cmake libopus-dev
+
+      # Install dependencies (macOS only)
+      - name: install dependencies (macOS only)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install cmake opus
+
+      # Install dependencies (Windows only)
+      - name: install dependencies (Windows only)
+        if: matrix.os == 'windows-latest'
+        run: |
+          choco install cmake opus asio
 
       - name: setup node
         uses: actions/setup-node@v4
@@ -91,7 +104,7 @@ jobs:
         run: |
           mkdir -p dist
           VERSION=$(echo "${{ github.event.head_commit.message }}" | grep -o 'v[0-9]*\.[0-9]*\.[0-9]*')
-          go build -o "dist/Discord 2.0 Server ${VERSION}" main.go
+          go build -o "dist/Discord 2.0 Server ${VERSION}" Server/main.go
 
       - name: Create release
         id: create_release
