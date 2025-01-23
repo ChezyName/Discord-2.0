@@ -46,7 +46,7 @@ jobs:
       - name: Install Dependencies (macOS only)
         if: matrix.os == 'macos-latest'
         run: |
-          brew install cmake opus
+          brew install cmake opus automake
           rustup target add x86_64-apple-darwin
 
       # Install dependencies (Windows only)
@@ -124,19 +124,19 @@ jobs:
       - name: Build Server (ubuntu only)
         if: matrix.os == 'ubuntu-20.04'
         run: |
-          GOOS=linux GOARCH=amd64 go build -o "dist/Discord2_Server_${VERSION}_linux"
+          go build -o "dist/Discord2_Server_${VERSION}_linux"
 
       # Install dependencies (macOS only)
       - name: Build Server (macOS only)
         if: matrix.os == 'macos-latest'
         run: |
-          GOOS=darwin GOARCH=amd64 go build -o "dist/Discord2_Server_${VERSION}_mac"
+          go build -o "dist/Discord2_Server_${VERSION}_mac"
 
       # Install dependencies (Windows only)
       - name: Build Server (Windows only)
         if: matrix.os == 'windows-latest'
         run: |
-          GOOS=windows GOARCH=amd64 go build -o "dist/Discord2_Server_${VERSION}_windows.exe"
+          go build -o "dist/Discord2_Server_${VERSION}_windows.exe"
 
       - name: Debugger
         run: |
