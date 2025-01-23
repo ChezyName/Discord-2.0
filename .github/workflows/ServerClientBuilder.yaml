@@ -26,8 +26,8 @@ jobs:
         include:
           - os: macos-latest
             target: aarch64-apple-darwin
-          - os: macos-latest
-            target: x86_64-apple-darwin
+          #- os: macos-latest NOT WORKING
+          #  target: x86_64-apple-darwin
           - os: ubuntu-24
           - os: windows-latest
     runs-on: ${{ matrix.os }}
@@ -101,8 +101,8 @@ jobs:
         include:
           - os: macos-latest
             target: aarch64-apple-darwin
-          - os: macos-latest
-            target: x86_64-apple-darwin
+          #- os: macos-latest NOT WORKING
+          #  target: x86_64-apple-darwin
           - os: ubuntu-24
           - os: windows-latest
     runs-on: ${{ matrix.os }}
@@ -138,18 +138,11 @@ jobs:
         run: |
           go build -o "dist/Discord2_Server_${VERSION}_windows.exe"
 
-      - name: Debugger
-        run: |
-          ls
-          cd dist
-          ls
-
       - name: Upload Built Server
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release upload "${{ github.ref_name }}" "dist/*" \
-            --repo "${{ github.repository }}" \
             --clobber
 
     
