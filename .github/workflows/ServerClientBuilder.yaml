@@ -89,27 +89,9 @@ jobs:
           prerelease: false
           args: ${{ matrix.target && format('--target {0}', matrix.target) }}
 
-  Server:
-    name: Upload Server
-    runs-on: ubuntu-24.02
-    steps:
-      - name: Checkout the repository
-        uses: actions/checkout@v4
-
-      - name: File Checker
-        run: |
-          ls
-
-      - name: Upload Built Server
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release upload "${{ github.ref_name }}" "/Server"
-
-    
   
   publish:
-    needs: [Client, Server]
+    needs: [Client]
     runs-on: ubuntu-latest
     steps:
     - name: Publish Release
