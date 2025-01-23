@@ -41,6 +41,10 @@ jobs:
           sudo apt-get install -y alsa-base
           sudo apt-get install -y cmake
           sudo apt-get install -y jackd2
+          export PKG_CONFIG_PATH=/usr/lib/pkgconfig:/usr/share/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig
+
+
+          
       - name: Install Dependencies (macOS only)
         if: matrix.os == 'macos-latest'
         run: |
@@ -66,7 +70,7 @@ jobs:
           version: lts/*
           cache: npm
           cache-dependency-path: 'Client/package-lock.json'
-          
+
       - name: Install frontend dependencies
         run: npm install
       - name: Build app
