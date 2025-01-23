@@ -90,53 +90,23 @@ jobs:
           args: ${{ matrix.target && format('--target {0}', matrix.target) }}
 
   Server:
-    defaults:
-      run:
-        working-directory: ./Server
-    name: Build and Release Go Server
-    if: contains(github.event.head_commit.message, 'release v')
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: macos-latest
-            target: aarch64-apple-darwin
-          #- os: macos-latest NOT WORKING
-          #  target: x86_64-apple-darwin
-          - os: ubuntu-24
-          - os: windows-latest
-    runs-on: ${{ matrix.os }}
+    name: Generate cross-platform builds for server
+    runs-on: ubuntu-latest
     steps:
-      # Checkout only the /Server folder and ignore other parts of the repository
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go environment
-        uses: actions/setup-go@v4
+      - name: Checkout the repository
+        uses: actions/checkout@v2
+      - name: Generate build files
+        uses: thatisuday/go-cross-build@v1
         with:
-          go-version: '1.23.3'
+            platforms: 'linux/amd64, darwin/amd64, windows/amd64, linux/arm64, darwin/arm64, windows/arm64'
+            package: 'Server'
+            name: 'discord_2.0_server'
+            compress: 'false'
+            dest: 'dist'
 
-      - name: Initialize Go module in Server
+      - name: File Checker
         run: |
-          go mod tidy
-
-      # Install dependencies (Ubuntu only)
-      - name: Build Server (ubuntu only)
-        if: matrix.os == 'ubuntu-20.04'
-        run: |
-          go build -o "dist/Discord2_Server_${VERSION}_linux"
-
-      # Install dependencies (macOS only)
-      - name: Build Server (macOS only)
-        if: matrix.os == 'macos-latest'
-        run: |
-          go build -o "dist/Discord2_Server_${VERSION}_mac"
-
-      # Install dependencies (Windows only)
-      - name: Build Server (Windows only)
-        if: matrix.os == 'windows-latest'
-        run: |
-          go build -o "dist/Discord2_Server_${VERSION}_windows.exe"
+          ls
 
       - name: Upload Built Server
         env:
