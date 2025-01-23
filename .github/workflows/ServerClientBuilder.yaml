@@ -90,19 +90,11 @@ jobs:
           args: ${{ matrix.target && format('--target {0}', matrix.target) }}
 
   Server:
-    name: Generate cross-platform builds for server
-    runs-on: ubuntu-latest
+    name: Upload Server
+    runs-on: ubuntu-24.02
     steps:
       - name: Checkout the repository
-        uses: actions/checkout@v2
-      - name: Generate build files
-        uses: thatisuday/go-cross-build@v1
-        with:
-            platforms: 'linux/amd64, darwin/amd64, windows/amd64, linux/arm64, darwin/arm64, windows/arm64'
-            package: 'Server'
-            name: 'discord_2.0_server'
-            compress: 'false'
-            dest: 'dist'
+        uses: actions/checkout@v4
 
       - name: File Checker
         run: |
@@ -112,7 +104,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload "${{ github.ref_name }}" "./dist/*"
+          gh release upload "${{ github.ref_name }}" "/Server"
 
     
   
