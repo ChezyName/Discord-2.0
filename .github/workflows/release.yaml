@@ -43,7 +43,12 @@ jobs:
           sudo apt-get install -y jackd2
           export PKG_CONFIG_PATH=/usr/lib/pkgconfig:/usr/share/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig
 
-
+      - name: Uninstall Homebrew (ubuntu only)
+        if: matrix.os == 'ubuntu-20.04'
+        run: |
+          curl -fsSLO https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh
+          chmod +x uninstall.sh
+          sudo ./uninstall.sh
           
       - name: Install Dependencies (macOS only)
         if: matrix.os == 'macos-latest'
