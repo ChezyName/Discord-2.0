@@ -15,7 +15,7 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
-  release:
+  Client:
     defaults:
       run:
         working-directory: ./Client/
@@ -28,7 +28,7 @@ jobs:
             target: aarch64-apple-darwin
           - os: macos-latest
             target: x86_64-apple-darwin
-          - os: ubuntu-20.04
+          - os: ubuntu-24
           - os: windows-latest
     runs-on: ${{ matrix.os }}
     steps:
@@ -40,12 +40,14 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libayatana-appindicator3-dev librsvg2-dev cmake
+          sudo apt install libwebkit2gtk-4.1-dev libsoup3.0-dev
 
       # Install dependencies (macOS only)
       - name: Install Dependencies (macOS only)
         if: matrix.os == 'macos-latest'
         run: |
           brew install cmake opus
+          rustup target add x86_64-apple-darwin
 
       # Install dependencies (Windows only)
       - name: Install Dependencies (Windows only)
@@ -87,7 +89,7 @@ jobs:
           prerelease: false
           args: ${{ matrix.target && format('--target {0}', matrix.target) }}
 
-  build-and-release-go:
+  Server:
     defaults:
       run:
         working-directory: ./Server
@@ -101,7 +103,7 @@ jobs:
             target: aarch64-apple-darwin
           - os: macos-latest
             target: x86_64-apple-darwin
-          - os: ubuntu-20.04
+          - os: ubuntu-24
           - os: windows-latest
     runs-on: ${{ matrix.os }}
     steps:
@@ -118,17 +120,29 @@ jobs:
         run: |
           go mod tidy
 
-      - name: Build Go server
+      # Install dependencies (Ubuntu only)
+      - name: Build Server (ubuntu only)
+        if: matrix.os == 'ubuntu-20.04'
         run: |
-          mkdir -p dist
-          VERSION=$(echo "${{ github.event.head_commit.message }}" | grep -o 'v[0-9]*\.[0-9]*\.[0-9]*')
-          if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
-            GOOS=linux GOARCH=amd64 go build -o "dist/Discord2_Server_${VERSION}_linux"
-          elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
-            GOOS=darwin GOARCH=amd64 go build -o "dist/Discord2_Server_${VERSION}_mac"
-          elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            GOOS=windows GOARCH=amd64 go build -o "dist/Discord2_Server_${VERSION}_windows.exe"
-          fi
+          GOOS=linux GOARCH=amd64 go build -o "dist/Discord2_Server_${VERSION}_linux"
+
+      # Install dependencies (macOS only)
+      - name: Build Server (macOS only)
+        if: matrix.os == 'macos-latest'
+        run: |
+          GOOS=darwin GOARCH=amd64 go build -o "dist/Discord2_Server_${VERSION}_mac"
+
+      # Install dependencies (Windows only)
+      - name: Build Server (Windows only)
+        if: matrix.os == 'windows-latest'
+        run: |
+          GOOS=windows GOARCH=amd64 go build -o "dist/Discord2_Server_${VERSION}_windows.exe"
+
+      - name: Debugger
+        run: |
+          ls
+          cd dist
+          ls
 
       - name: Upload Built Server
         env:
@@ -141,7 +155,7 @@ jobs:
     
   
   publish:
-    needs: [release,build-and-release-go]
+    needs: [Client, Server]
     runs-on: ubuntu-latest
     steps:
     - name: Publish Release
