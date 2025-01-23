@@ -59,16 +59,14 @@ jobs:
           workspaces: './src-tauri -> target'
       - if: matrix.target
         run: rustup target add ${{ matrix.target }}
-      - uses: actions/setup-node@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           version: lts/*
           cache: npm
           cache-dependency-path: 'Client/package-lock.json'
-      - name: Use Node.js 18
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-          cache: 'npm'
+          
       - name: Install frontend dependencies
         run: npm install
       - name: Build app
