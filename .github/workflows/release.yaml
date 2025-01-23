@@ -1,0 +1,90 @@
+name: 'Build & Release'
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+    paths-ignore:
+      - 'Images/**'
+env:
+  AUTH_GITHUB_ID: ${{ secrets.AUTH_GITHUB_ID }}
+  AUTH_GITHUB_SECRET: ${{ secrets.AUTH_GITHUB_SECRET }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  Client:
+    defaults:
+      run:
+        working-directory: ./Client/
+    if: contains(github.event.head_commit.message, 'release')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: aarch64-apple-darwin
+          - os: macos-latest
+            target: x86_64-apple-darwin
+          - os: ubuntu-20.04
+          - os: windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Tauri dependencies (ubuntu only)
+        if: matrix.os == 'ubuntu-20.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libayatana-appindicator3-dev librsvg2-dev
+          sudo apt-get install -y alsa-base
+          sudo apt-get install -y cmake
+          sudo apt-get install -y jackd2
+      - name: Install Dependencies (macOS only)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install cmake opus automake
+          rustup target add x86_64-apple-darwin
+      - name: Install Dependencies (Windows only)
+        if: matrix.os == 'windows-latest'
+        run: |
+          choco install cmake asio4all
+
+      - name: Rust setup
+        uses: dtolnay/rust-toolchain@stable
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+      - if: matrix.target
+        run: rustup target add ${{ matrix.target }}
+      - uses: npm/action-setup@v4
+        with:
+          version: lts/*
+          cache: npm
+          cache-dependency-path: 'Client/package-lock.json'
+      - name: Use Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+      - name: Install frontend dependencies
+        run: npm install
+      - name: Build app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          #APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          #APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          #APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          #APPLE_ID: ${{ secrets.APPLE_ID }}
+          #APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          #APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          tagName: DiscordII-v__VERSION__
+          releaseName: 'DiscordII v__VERSION__'
+          releaseBody: 'Discord II Files, *CHANGE DESC BEFORE RELEASE*'
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.target && format('--target {0}', matrix.target) }}
