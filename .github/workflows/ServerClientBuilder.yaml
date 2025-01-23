@@ -18,7 +18,7 @@ jobs:
   release:
     defaults:
       run:
-        working-directory: ./Client
+        working-directory: ./Client/
     if: contains(github.event.head_commit.message, 'release v')
     strategy:
       fail-fast: false
@@ -35,34 +35,30 @@ jobs:
       - uses: actions/checkout@v4
 
       # Install dependencies (Ubuntu only)
-      - name: Install Tauri dependencies (ubuntu only)
+      - name: Install Dependencies (ubuntu only)
         if: matrix.os == 'ubuntu-20.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libayatana-appindicator3-dev librsvg2-dev cmake
 
       # Install dependencies (macOS only)
-      - name: install dependencies (macOS only)
+      - name: Install Dependencies (macOS only)
         if: matrix.os == 'macos-latest'
         run: |
           brew install cmake opus
 
       # Install dependencies (Windows only)
-      - name: install dependencies (Windows only)
+      - name: Install Dependencies (Windows only)
         if: matrix.os == 'windows-latest'
         run: |
           choco install cmake asio4all
-          
-      - name: DEBUG
-        run: |
-          ls
 
       - name: setup node
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
           cache: npm
-          cache-dependency-path: '/package-lock.json'
+          cache-dependency-path: 'Client/package-lock.json'
 
 
       - name: install Rust stable
@@ -97,8 +93,17 @@ jobs:
         working-directory: ./Server
     name: Build and Release Go Server
     if: contains(github.event.head_commit.message, 'release v')
-    runs-on: ubuntu-latest
-
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: aarch64-apple-darwin
+          - os: macos-latest
+            target: x86_64-apple-darwin
+          - os: ubuntu-20.04
+          - os: windows-latest
+    runs-on: ${{ matrix.os }}
     steps:
       # Checkout only the /Server folder and ignore other parts of the repository
       - name: Checkout code
@@ -109,10 +114,6 @@ jobs:
         with:
           go-version: '1.23.3'
 
-      - name: DEBUG
-        run: |
-          ls
-
       - name: Initialize Go module in Server
         run: |
           go mod tidy
@@ -121,26 +122,36 @@ jobs:
         run: |
           mkdir -p dist
           VERSION=$(echo "${{ github.event.head_commit.message }}" | grep -o 'v[0-9]*\.[0-9]*\.[0-9]*')
-          go build -o "dist/Discord 2.0 Server ${VERSION}" main.go
+          if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+            GOOS=linux GOARCH=amd64 go build -o "dist/Discord2_Server_${VERSION}_linux"
+          elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+            GOOS=darwin GOARCH=amd64 go build -o "dist/Discord2_Server_${VERSION}_mac"
+          elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            GOOS=windows GOARCH=amd64 go build -o "dist/Discord2_Server_${VERSION}_windows.exe"
+          fi
 
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
+      - name: Upload Built Server
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.ref_name }}" "dist/*" \
+            --repo "${{ github.repository }}" \
+            --clobber
 
-      - name: Upload Release Asset
-        id: upload-release-asset 
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: "Server/dist/Discord 2.0 Server ${VERSION}"
-          asset_name: "Discord 2.0 Server ${VERSION}"
-          asset_content_type: application/octet-stream
+    
+  
+  publish:
+    needs: [release,build-and-release-go]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Publish Release
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GH_REPO: ${{ github.repository }}
+      run: gh release edit "${{ needs.release.outputs.tag }}" --draft=false
+    - uses: eregon/keep-last-n-releases@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        n: 3
+        remove_tags_without_release: true
