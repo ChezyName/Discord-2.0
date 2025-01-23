@@ -1,4 +1,4 @@
-<img src="./Images/DiscordBanner_1280x640.png">
+<img src="./Images/DiscordBanner_White_1280x640.png">
 
 <!---
 <div align="center">
