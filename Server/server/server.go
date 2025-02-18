@@ -34,6 +34,15 @@ type Server struct {
 	PortData    string
 	Connections []VoiceConnection
 	ServerName  string
+
+	LastTotalReceivedBytes uint64
+	LastTotalSentBytes     uint64
+
+	TotalReceivedBytes uint64
+	TotalSentBytes     uint64
+
+	ReceivedBs float64
+	SentKBs    float64
 }
 
 var server Server
@@ -53,7 +62,20 @@ func CreateServer(serverName string, port string) *Server {
 	return &server
 }
 
+type ResponseWriterWithTracking struct {
+	http.ResponseWriter
+	bytesWritten int
+}
+
+func (rw *ResponseWriterWithTracking) Write(p []byte) (int, error) {
+	n, err := rw.ResponseWriter.Write(p)
+	rw.bytesWritten += n
+	return n, err
+}
+
 func dataServerBaseURL(w http.ResponseWriter, r *http.Request) {
+	trackingWriter := &ResponseWriterWithTracking{ResponseWriter: w}
+
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "application/json")
 
@@ -65,11 +87,14 @@ func dataServerBaseURL(w http.ResponseWriter, r *http.Request) {
 	var serverData ServerData = ServerData{ServerName: server.ServerName, Users: users}
 
 	// Serialize the data to JSON and write it to the response
-	err := json.NewEncoder(w).Encode(serverData)
+	err := json.NewEncoder(trackingWriter).Encode(serverData)
 	if err != nil {
 		http.Error(w, "Failed to encode JSON", http.StatusInternalServerError)
 		return
 	}
+
+	// Update the TotalReceivedBytes with the amount of bytes written in the response
+	server.TotalSentBytes += uint64(trackingWriter.bytesWritten)
 }
 
 func HostDataServer(server *Server) {
@@ -119,8 +144,7 @@ func HostVoiceServer(server *Server) {
 	// Track start time to calculate KB/s
 	startTime := time.Now()
 
-	var totalReceivedBytes uint64
-	var totalSentBytes uint64
+	var totalBytesReceived int64
 
 	// Read data in a loop
 	for {
@@ -132,6 +156,7 @@ func HostVoiceServer(server *Server) {
 
 		// Track the total received bytes for the connection
 		updateConnectionData(server, addr, uint64(n), 0)
+		server.TotalReceivedBytes += uint64(n)
 
 		// Check if User is sending their username
 		if strings.Contains(string(buffer[:n]), "username:") {
@@ -197,11 +222,14 @@ func HostVoiceServer(server *Server) {
 			// This is Audio Data
 			for _, item := range server.Connections {
 				// Send Audio Data if NOT self
-				if strings.Compare(item.Address, addr.String()) != 0 {
+				if strings.Compare(item.Address, addr.String()) != 0 || debugMode {
 					_, err = conn.WriteToUDP(buffer[:n], addr)
 
 					// Track the total sent bytes for the connection
 					updateConnectionData(server, addr, 0, uint64(n))
+
+					server.TotalSentBytes += uint64(n)
+					server.TotalReceivedBytes += uint64(n) * 5
 
 					if err != nil {
 						fmt.Println("Error sending voice data to {"+addr.String()+"}, err:", err)
@@ -221,22 +249,19 @@ func HostVoiceServer(server *Server) {
 		}
 
 		_, conn := findConnectionByAddress(addr)
-		// Calculate elapsed time and KB/s
-		elapsedTime := time.Since(startTime)
+
 		// If more than 1 second has passed, calculate and print KB/s
-		if elapsedTime >= time.Second {
-			// Calculate KB/s for both received and sent data
-			recvKBps := float64(totalReceivedBytes) / 1024 / elapsedTime.Seconds()
-			sentKBps := float64(totalSentBytes) / 1024 / elapsedTime.Seconds()
+		totalBytesReceived += int64(n)
 
-			// Print network stats per second
-			conn.ReceivedKBs = recvKBps
-			conn.SentKBs = sentKBps
+		elapsedTime := time.Since(startTime).Seconds()
+		if elapsedTime >= 1 {
+			kbps := float64(totalBytesReceived*8) / elapsedTime / 1000
+			fmt.Printf("Speed: %.2f Kbps\n", kbps)
 
-			// Reset stats for next second
-			totalReceivedBytes = 0
-			totalSentBytes = 0
+			totalBytesReceived = 0
 			startTime = time.Now()
+
+			conn.SentKBs = kbps
 		}
 	}
 }
@@ -275,6 +300,16 @@ func UserListClearer(timeFrameS int64, server *Server) {
 	}
 }
 
+func UpdateServerStats(server *Server) {
+	// Calculate SentKBs and ReceivedKBs based on the total bytes sent and received
+	server.SentKBs = float64(server.TotalSentBytes-server.LastTotalSentBytes) / 1024
+	server.ReceivedBs = float64(server.TotalReceivedBytes-server.LastTotalReceivedBytes) / 1024
+
+	// Reset byte counters for the next second
+	server.LastTotalSentBytes = server.TotalSentBytes
+	server.LastTotalReceivedBytes = server.TotalReceivedBytes
+}
+
 func HostBothServers(server *Server, isDebug bool) {
 	fmt.Println("Server '" + server.ServerName + "' is Ready")
 	debugMode = isDebug
@@ -283,11 +318,13 @@ func HostBothServers(server *Server, isDebug bool) {
 		fmt.Println("	- Additionally, Server is running in DEBUG MODE")
 	}
 
-	go runStats(server)
 	go launchMessageGateway(server)
 	go HostDataServer(server)
 	go HostVoiceServer(server)
+
 	go UserListClearer(5, server)
+
+	go runStats(server)
 
 	//keep servers running
 	select {}

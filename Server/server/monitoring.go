@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/shirou/gopsutil/net"
+	//"github.com/shirou/gopsutil/net"
 	"github.com/shirou/gopsutil/v3/process"
 )
 
@@ -33,9 +33,9 @@ func runStats(server *Server) {
 	}
 
 	// Get initial network stats
-	prevNetStats, _ := net.IOCounters(false)
-	totalSent := prevNetStats[0].BytesSent
-	totalRecv := prevNetStats[0].BytesRecv
+	//prevNetStats, _ := net.IOCounters(false)
+	//totalSent := prevNetStats[0].BytesSent
+	//totalRecv := prevNetStats[0].BytesRecv
 
 	for {
 		ClearConsole() // Clear screen before printing stats
@@ -50,22 +50,27 @@ func runStats(server *Server) {
 		ioCounters, _ := proc.IOCounters()
 
 		// Get current network stats
-		currentNetStats, _ := net.IOCounters(false)
+		//currentNetStats, _ := net.IOCounters(false)
 
 		// Calculate network usage since last check
-		sentBytes := currentNetStats[0].BytesSent - prevNetStats[0].BytesSent
-		recvBytes := currentNetStats[0].BytesRecv - prevNetStats[0].BytesRecv
+		//sentBytes := currentNetStats[0].BytesSent - prevNetStats[0].BytesSent
+		//recvBytes := currentNetStats[0].BytesRecv - prevNetStats[0].BytesRecv
 
 		// Update total bytes
-		totalSent = currentNetStats[0].BytesSent
-		totalRecv = currentNetStats[0].BytesRecv
+		//totalSent = currentNetStats[0].BytesSent
+		//totalRecv = currentNetStats[0].BytesRecv
 
 		// Update previous network stats
-		prevNetStats = currentNetStats
+		//prevNetStats = currentNetStats
+
+		UpdateServerStats(server)
 
 		fmt.Printf("---- Server Info ----\n")
 		fmt.Printf("Name: %s\n", server.ServerName)
 		fmt.Printf("Port: %s\n", server.PortVoice)
+		if debugMode {
+			fmt.Printf("RUNNING IN DEBUG MODE\n")
+		}
 
 		// Print Stats
 		fmt.Printf("\n---- Server Stats ----\n")
@@ -73,19 +78,19 @@ func runStats(server *Server) {
 		fmt.Printf("CPU Usage: %.2f%%\n", cpuPercent)
 		fmt.Printf("Memory Usage: %.2f MB\n", float64(memInfo.RSS)/1e6)
 		fmt.Printf("Disk Read: %.2f MB | Disk Write: %.2f MB\n", float64(ioCounters.ReadBytes)/1e6, float64(ioCounters.WriteBytes)/1e6)
-		fmt.Printf("Network Speed: Sent: %.2f KB/s | Received: %.2f KB/s\n", float64(sentBytes)/1e3, float64(recvBytes)/1e3)
-		fmt.Printf("Total Network: Sent: %.2f MB | Received: %.2f MB\n", float64(totalSent)/1e6, float64(totalRecv)/1e6)
+		fmt.Printf("Network Speed: Sent: %.2f KB/s | Received: %.2f KB/s\n", server.SentKBs, server.ReceivedBs)
+		fmt.Printf("Total Network: Sent: %.2f KB | Received: %.2f KB\n", float64(server.TotalSentBytes)/1e3, float64(server.TotalReceivedBytes)/1e3)
 
 		fmt.Printf("\n---- User Stats ----\n")
 		for _, user := range server.Connections {
 			fmt.Printf("%s | %s\n", user.Name, user.Address)
 			fmt.Printf("-	Messages Sent: %d\n", user.MessagesSent)
 
-			fmt.Printf("-	Network Speed: Sent: %.2f KB/s | Received: %.2f KB/s\n",
-				user.SentKBs, user.ReceivedKBs)
+			fmt.Printf("-	Network Speed: Sent: %.2f KB/s",
+				user.SentKBs)
 
-			fmt.Printf("-	Total Network: Sent: %.2f MB | Received: %.2f MB\n",
-				float64(user.TotalSentBytes)/1e6, float64(user.TotalReceivedBytes)/1e6)
+			fmt.Printf("-	Total Network: Sent: %.2f KB | Received: %.2f KB\n",
+				float64(user.TotalSentBytes)/1e3, float64(user.TotalReceivedBytes)/1e3)
 		}
 
 		time.Sleep(1 * time.Second)

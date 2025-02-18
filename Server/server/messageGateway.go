@@ -51,6 +51,8 @@ func getAllMessages(conn *Connection, server *Server) []Message {
 		}
 	}
 
+	server.TotalSentBytes += bytes
+
 	return Messages
 }
 
@@ -127,7 +129,7 @@ func launchMessageGateway(server *Server) *socket.Server {
 					Address:           client.Handshake().Address,
 					Name:              displayName,
 					LastSeen:          time.Now().Unix(),
-					CanAutoDisconnect: false,
+					CanAutoDisconnect: debugMode,
 				}
 
 				if index == -1 {
@@ -136,6 +138,8 @@ func launchMessageGateway(server *Server) *socket.Server {
 				} else {
 					server.Connections[index] = NewVC
 				}
+
+				server.TotalReceivedBytes = uint64(len(displayName))
 			}
 		})
 
@@ -196,6 +200,8 @@ func launchMessageGateway(server *Server) *socket.Server {
 						break
 					}
 				}
+
+				server.TotalReceivedBytes = uint64(len(msg))
 			}
 		})
 
