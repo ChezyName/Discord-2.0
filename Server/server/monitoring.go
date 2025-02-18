@@ -97,30 +97,37 @@ func runStats(server *Server) {
 		fmt.Printf("PID: %d\n", pid)
 		fmt.Printf("CPU Usage: %.2f%%\n", cpuPercent)
 		fmt.Printf("Memory Usage: %.2f MB\n", float64(memInfo.RSS)/1e6)
-		fmt.Printf("Disk Read: %.2f MB | Disk Write: %.2f MB\n", float64(ioCounters.ReadBytes)/1e6, float64(ioCounters.WriteBytes)/1e6)
+		fmt.Printf("Disk Read: %.2f MB\nDisk Write: %.2f MB\n", float64(ioCounters.ReadBytes)/1e6, float64(ioCounters.WriteBytes)/1e6)
 
 		fmt.Printf("\n---- Network Stats ----\n")
-		fmt.Printf("Network Speed			| Sent: %.2f KB/s | Received: %.2f KB/s\n", server.SentKBs, server.ReceivedBs)
-		fmt.Printf("Total Network			| Sent: %.2f KB | Received: %.2f KB\n", float64(server.TotalSentBytes)/1e3, float64(server.TotalReceivedBytes)/1e3)
-		fmt.Printf("Total Network [VOICE]	| Sent: %.2f KB | Received: %.2f KB\n", float64(server.TotalSentBytesVoice)/1e3, float64(server.TotalReceivedBytesVoice)/1e3)
-		fmt.Printf("Total Network [MESSAGE]	| Sent: %.2f KB | Received: %.2f KB\n", float64(server.TotalSentBytesMessage)/1e3, float64(server.TotalReceivedBytesMessage)/1e3)
-		fmt.Printf("Total Network [DATA]	| Sent: %.2f KB | Received: %.2f KB\n", float64(server.TotalSentBytesData)/1e3, float64(server.TotalReceivedBytesData)/1e3)
+		fmt.Printf("Network Speed           | Sent: %.2f KB/s | Received: %.2f KB/s\n", server.SentKBs, server.ReceivedKBs)
+		fmt.Printf("Network Speed [VOICE]   | Sent: %.2f KB/s | Received: %.2f KB/s\n", float64(server.VoiceSentKBs)/1e3, float64(server.VoiceReceivedKBs)/1e3)
+
+		fmt.Printf("\n")
+
+		fmt.Printf("Total Network           | Sent: %.2f KB   | Received: %.2f KB\n", float64(server.TotalSentBytes)/1e3, float64(server.TotalReceivedBytes)/1e3)
+		fmt.Printf("Total Network [VOICE]   | Sent: %.2f KB   | Received: %.2f KB\n", float64(server.TotalSentBytesVoice)/1e3, float64(server.TotalReceivedBytesVoice)/1e3)
+		fmt.Printf("Total Network [MESSAGE] | Sent: %.2f KB   | Received: %.2f KB\n", float64(server.TotalSentBytesMessage)/1e3, float64(server.TotalReceivedBytesMessage)/1e3)
+		fmt.Printf("Total Network [DATA]    | Sent: %.2f KB   | Received: %.2f KB\n", float64(server.TotalSentBytesData)/1e3, float64(server.TotalReceivedBytesData)/1e3)
 
 		if len(server.Connections) > 0 {
 			fmt.Printf("\n---- User Stats ----\n")
 		}
 
 		for _, user := range server.Connections {
+			padding := len(user.Name) + 1 // +1 for the space before '|'
+
 			fmt.Printf("%s | %s\n", user.Name, user.Address)
-			fmt.Printf("-	Messages Sent: %d\n", user.MessagesSent)
 
-			fmt.Printf("-	Network Speed: Sent: %.2f KB/s",
-				user.SentKBs)
+			fmt.Printf("%*sMessages Sent: %d\n", padding, "", user.MessagesSent)
 
-			fmt.Printf("-	Total Network: Sent: %.2f KB | Received: %.2f KB\n",
-				float64(user.TotalSentBytes)/1e3, float64(user.TotalReceivedBytes)/1e3)
+			fmt.Printf("%*sNetwork Speed: Sent: %.2f KB/s | Received: %.2f KB/s\n", padding, "",
+				user.SentKBs, user.ReceivedKBs)
+
+			fmt.Printf("%*sTotal Network: Sent: %.2f KB   | Received: %.2f KB\n",
+				padding, "", float64(user.TotalSentBytes)/1e3, float64(user.TotalReceivedBytes)/1e3)
 		}
 
-		time.Sleep(15 * time.Second)
+		time.Sleep(1 * time.Second)
 	}
 }

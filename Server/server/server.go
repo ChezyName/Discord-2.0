@@ -11,15 +11,21 @@ import (
 
 // Server will host both UDP server for Voice Data and TCP Server For Server Data
 type VoiceConnection struct {
-	Address            string `json:"Address"`
-	Name               string `json:"Name"`
-	LastSeen           int64  `json:"LastConnected"`
-	CanAutoDisconnect  bool
+	Address           string `json:"Address"`
+	Name              string `json:"Name"`
+	LastSeen          int64  `json:"LastConnected"`
+	CanAutoDisconnect bool
+
 	TotalReceivedBytes uint64
 	TotalSentBytes     uint64
-	ReceivedKBs        float64
-	SentKBs            float64
-	MessagesSent       uint64
+
+	LastTotalReceivedBytes uint64
+	LastTotalSentBytes     uint64
+
+	ReceivedKBs float64
+	SentKBs     float64
+
+	MessagesSent uint64
 }
 
 type ServerData struct {
@@ -37,6 +43,9 @@ type Server struct {
 	LastTotalReceivedBytes uint64
 	LastTotalSentBytes     uint64
 
+	VoiceLastTotalReceivedBytes uint64
+	VoiceLastTotalSentBytes     uint64
+
 	TotalReceivedBytes uint64
 	TotalSentBytes     uint64
 
@@ -49,8 +58,11 @@ type Server struct {
 	TotalReceivedBytesData uint64
 	TotalSentBytesData     uint64
 
-	ReceivedBs float64
-	SentKBs    float64
+	ReceivedKBs float64
+	SentKBs     float64
+
+	VoiceReceivedKBs float64
+	VoiceSentKBs     float64
 }
 
 var server Server
@@ -149,11 +161,6 @@ func HostVoiceServer(server *Server) {
 
 	// Buffer to store incoming data
 	buffer := make([]byte, 2048)
-
-	// Track start time to calculate KB/s
-	startTime := time.Now()
-
-	var totalBytesReceived int64
 
 	// Read data in a loop
 	for {
@@ -257,35 +264,16 @@ func HostVoiceServer(server *Server) {
 				server.Connections[connIndex] = *conn
 			}
 		}
-
-		_, conn := findConnectionByAddress(addr)
-
-		// If more than 1 second has passed, calculate and print KB/s
-		totalBytesReceived += int64(n)
-
-		elapsedTime := time.Since(startTime).Seconds()
-		if elapsedTime >= 1 {
-			kbps := float64(totalBytesReceived*8) / elapsedTime / 1000
-			//fmt.Printf("Speed: %.2f Kbps\n", kbps)
-
-			totalBytesReceived = 0
-			startTime = time.Now()
-
-			conn.SentKBs = kbps
-		}
 	}
 }
 
 // Helper function to update connection data (sent/received bytes)
 func updateConnectionData(server *Server, addr net.Addr, receivedBytes uint64, sentBytes uint64) {
-	// Find connection by address
-	for i, conn := range server.Connections {
-		if strings.Compare(conn.Address, addr.String()) == 0 {
-			// Update received and sent bytes for this connection
-			server.Connections[i].TotalReceivedBytes += receivedBytes
-			server.Connections[i].TotalSentBytes += sentBytes
-			return
-		}
+	connIndex, conn := findConnectionByAddress(addr)
+	if conn != nil {
+		conn.TotalReceivedBytes += receivedBytes
+		conn.TotalSentBytes += sentBytes
+		server.Connections[connIndex] = *conn
 	}
 }
 
@@ -309,11 +297,32 @@ func UserListClearer(timeFrameS int64, server *Server) {
 func UpdateServerStats(server *Server) {
 	// Calculate SentKBs and ReceivedKBs based on the total bytes sent and received
 	server.SentKBs = float64(server.TotalSentBytes-server.LastTotalSentBytes) / 1024
-	server.ReceivedBs = float64(server.TotalReceivedBytes-server.LastTotalReceivedBytes) / 1024
+	server.ReceivedKBs = float64(server.TotalReceivedBytes-server.LastTotalReceivedBytes) / 1024
 
 	// Reset byte counters for the next second
 	server.LastTotalSentBytes = server.TotalSentBytes
 	server.LastTotalReceivedBytes = server.TotalReceivedBytes
+
+	//---------------------------------------------------------
+	//VOICE
+
+	// Calculate SentKBs and ReceivedKBs based on the total bytes sent and received
+	server.VoiceSentKBs = float64(server.TotalSentBytesVoice-server.VoiceLastTotalSentBytes) / 1024
+	server.VoiceReceivedKBs = float64(server.TotalReceivedBytesVoice-server.VoiceLastTotalReceivedBytes) / 1024
+
+	// Reset byte counters for the next second
+	server.LastTotalSentBytes = server.TotalSentBytesVoice
+	server.LastTotalReceivedBytes = server.TotalReceivedBytesVoice
+
+	//Update KB/s for Each Voice Connection
+	for i, user := range server.Connections {
+		server.Connections[i].SentKBs = float64(user.TotalSentBytes-user.LastTotalSentBytes) / 1024
+		server.Connections[i].ReceivedKBs = float64(user.TotalReceivedBytes-user.LastTotalReceivedBytes) / 1024
+
+		// Reset byte counters for the next second
+		server.Connections[i].LastTotalSentBytes = user.TotalSentBytes
+		server.Connections[i].LastTotalReceivedBytes = user.TotalReceivedBytes
+	}
 }
 
 func HostBothServers(server *Server, isDebug bool) {

@@ -116,29 +116,6 @@ func launchMessageGateway(server *Server) *socket.Server {
 				//return the current message list
 				client.Emit("init", getAllMessages(&userConn, server))
 
-				// Check if user already exists, if not store it as part of the list.
-				var index = -1
-				for i, item := range server.Connections {
-					if strings.Compare(item.Address, client.Handshake().Address) == 0 {
-						index = i
-						break
-					}
-				}
-
-				var NewVC VoiceConnection = VoiceConnection{
-					Address:           client.Handshake().Address,
-					Name:              displayName,
-					LastSeen:          time.Now().Unix(),
-					CanAutoDisconnect: debugMode,
-				}
-
-				if index == -1 {
-					// Create new User
-					server.Connections = append(server.Connections, NewVC)
-				} else {
-					server.Connections[index] = NewVC
-				}
-
 				server.TotalReceivedBytes = uint64(len(displayName))
 				server.TotalReceivedBytesMessage = uint64(len(displayName))
 			}
