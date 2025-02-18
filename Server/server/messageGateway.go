@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/zishang520/engine.io/v2/types"
@@ -36,7 +37,20 @@ type MessageReturn struct {
 
 var Messages = []Message{}
 
-func getAllMessages() []Message {
+func getAllMessages(conn *Connection, server *Server) []Message {
+	var bytes uint64
+
+	for _, msg := range Messages {
+		bytes += uint64(len(msg.Message))
+	}
+
+	for i, user := range server.Connections {
+		if user.Name == conn.DisplayName {
+			server.Connections[i].TotalReceivedBytes += bytes
+			break
+		}
+	}
+
 	return Messages
 }
 
@@ -81,27 +95,59 @@ func launchMessageGateway(server *Server) *socket.Server {
 				fmt.Println("[MSG SERVER] Client Joined: " + client.Handshake().Address + " // " + displayName)
 
 				//search for IP if already is inside list
-				index := FindConnectionByIP(client.Handshake().Address)
+				connIndex := FindConnectionByIP(client.Handshake().Address)
 
-				if index == -1 {
+				var userConn Connection
+				if connIndex == -1 {
 					//Add to list
-					MessageUsers = append(MessageUsers, Connection{
+					userConn = Connection{
 						DisplayName: displayName,
 						IP:          client.Handshake().Address,
-					})
+					}
+					MessageUsers = append(MessageUsers, userConn)
 				} else {
 					//User Has Changed Thier Name - Perhaps Change All Messages By Them?
-					MessageUsers[index].DisplayName = displayName
+					MessageUsers[connIndex].DisplayName = displayName
+					userConn = MessageUsers[connIndex]
 				}
 
 				//return the current message list
-				client.Emit("init", getAllMessages())
+				client.Emit("init", getAllMessages(&userConn, server))
+
+				// Check if user already exists, if not store it as part of the list.
+				var index = -1
+				for i, item := range server.Connections {
+					if strings.Compare(item.Address, client.Handshake().Address) == 0 {
+						index = i
+						break
+					}
+				}
+
+				var NewVC VoiceConnection = VoiceConnection{
+					Address:           client.Handshake().Address,
+					Name:              displayName,
+					LastSeen:          time.Now().Unix(),
+					CanAutoDisconnect: false,
+				}
+
+				if index == -1 {
+					// Create new User
+					server.Connections = append(server.Connections, NewVC)
+				} else {
+					server.Connections[index] = NewVC
+				}
 			}
 		})
 
 		//Reloading Messages Since User's Message Count is Invalid
 		client.On("msg-reload", func(data ...any) {
-			client.Emit("msg-reload", getAllMessages())
+
+			for _, item := range MessageUsers {
+				if strings.Compare(item.IP, client.Handshake().Address) == 0 {
+					client.Emit("msg-reload", getAllMessages(&item, server))
+					break
+				}
+			}
 		})
 
 		client.On("msg", func(data ...any) {
@@ -141,6 +187,15 @@ func launchMessageGateway(server *Server) *socket.Server {
 						TimeStamp:   time.Now().Unix(),
 					},
 				})
+
+				//Get User and Update Message Counter
+				for i, user := range server.Connections {
+					if user.Name == displayName {
+						server.Connections[i].MessagesSent++
+						server.Connections[i].TotalSentBytes += uint64(len(msg))
+						break
+					}
+				}
 			}
 		})
 

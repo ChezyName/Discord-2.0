@@ -12,9 +12,15 @@ import (
 
 // Server will host both UDP server for Voice Data and TCP Server For Server Data
 type VoiceConnection struct {
-	Address  net.Addr `json:"Address"`
-	Name     string   `json:"Name"`
-	LastSeen int64    `json:"LastConnected"`
+	Address            string `json:"Address"`
+	Name               string `json:"Name"`
+	LastSeen           int64  `json:"LastConnected"`
+	CanAutoDisconnect  bool
+	TotalReceivedBytes uint64  `json:"TotalReceivedBytes"`
+	TotalSentBytes     uint64  `json:"TotalSentBytes"`
+	ReceivedKBs        float64 `json:"ReceivedKBs"`
+	SentKBs            float64 `json:"SentKBs"`
+	MessagesSent       uint64  `json:"MessagesSent"`
 }
 
 type ServerData struct {
@@ -81,7 +87,7 @@ func HostDataServer(server *Server) {
 
 func findConnectionByAddress(addr net.Addr) (int, *VoiceConnection) {
 	for i, item := range server.Connections {
-		if strings.Compare(item.Address.String(), addr.String()) == 0 {
+		if strings.Compare(item.Address, addr.String()) == 0 {
 			return i, &item
 		}
 	}
@@ -108,9 +114,13 @@ func HostVoiceServer(server *Server) {
 	fmt.Println("UDP server listening on " + server.Address + ":" + server.PortVoice)
 
 	// Buffer to store incoming data
-
-	//2048 to make sure we have enough space
 	buffer := make([]byte, 2048)
+
+	// Track start time to calculate KB/s
+	startTime := time.Now()
+
+	var totalReceivedBytes uint64
+	var totalSentBytes uint64
 
 	// Read data in a loop
 	for {
@@ -120,44 +130,42 @@ func HostVoiceServer(server *Server) {
 			continue
 		}
 
-		// Print the received data
-		//fmt.Printf("Received %d bytes from %s: %s\n", n, addr, string(buffer[:n]))
-		data := string(buffer[:n])
+		// Track the total received bytes for the connection
+		updateConnectionData(server, addr, uint64(n), 0)
 
-		//Check if User is sending thier username
-		if strings.Contains(data, "username:") {
-			username := strings.Replace(data, "username:", "", 1)
+		// Check if User is sending their username
+		if strings.Contains(string(buffer[:n]), "username:") {
+			username := strings.Replace(string(buffer[:n]), "username:", "", 1)
 
-			//Check if user already exists, if not store it part of the list.
+			// Check if user already exists, if not store it as part of the list.
 			var index = -1
 			for i, item := range server.Connections {
-				if strings.Compare(item.Address.String(), addr.String()) == 0 {
+				if strings.Compare(item.Address, addr.String()) == 0 {
 					index = i
 					break
 				}
 			}
 
 			var NewVC VoiceConnection = VoiceConnection{
-				Address:  addr,
-				Name:     username,
-				LastSeen: time.Now().Unix(),
+				Address:           addr.String(),
+				Name:              username,
+				LastSeen:          time.Now().Unix(),
+				CanAutoDisconnect: true,
 			}
 
 			if index == -1 {
-				//Create new User
+				// Create new User
 				server.Connections = append(server.Connections, NewVC)
 				fmt.Println("New User: '" + username + "' Has Connected on " + addr.String())
 			} else {
 				server.Connections[index] = NewVC
 				fmt.Println("Returning User: '" + username + "' Has Connected on " + addr.String())
 			}
-		} else if strings.Contains(data, "hb") {
-			//fmt.Println("Receieved Heartbeat")
-
-			//Heartbeat
+		} else if strings.Contains(string(buffer[:n]), "hb") {
+			// Heartbeat: Update last seen time
 			var index = -1
 			for i, item := range server.Connections {
-				if strings.Compare(item.Address.String(), addr.String()) == 0 {
+				if strings.Compare(item.Address, addr.String()) == 0 {
 					index = i
 					break
 				}
@@ -168,14 +176,11 @@ func HostVoiceServer(server *Server) {
 			}
 
 			server.Connections[index].LastSeen = time.Now().Unix()
-		} else if strings.Contains(data, "disconnect") {
-			//User is leaving the server, goodbye
-			//fmt.Println("Receieved Heartbeat")
-
-			//Get Index
+		} else if strings.Contains(string(buffer[:n]), "disconnect") {
+			// User is leaving the server
 			var index = -1
 			for i, item := range server.Connections {
-				if strings.Compare(item.Address.String(), addr.String()) == 0 {
+				if strings.Compare(item.Address, addr.String()) == 0 {
 					index = i
 					break
 				}
@@ -189,13 +194,14 @@ func HostVoiceServer(server *Server) {
 			server.Connections[index] = server.Connections[len(server.Connections)-1]
 			server.Connections = server.Connections[:len(server.Connections)-1]
 		} else {
-			//fmt.Println(buffer)
-
-			//This is Audio Data
+			// This is Audio Data
 			for _, item := range server.Connections {
-				//send Audio Data if NOT self
-				if strings.Compare(item.Address.String(), addr.String()) != 0 || debugMode {
+				// Send Audio Data if NOT self
+				if strings.Compare(item.Address, addr.String()) != 0 {
 					_, err = conn.WriteToUDP(buffer[:n], addr)
+
+					// Track the total sent bytes for the connection
+					updateConnectionData(server, addr, 0, uint64(n))
 
 					if err != nil {
 						fmt.Println("Error sending voice data to {"+addr.String()+"}, err:", err)
@@ -206,12 +212,44 @@ func HostVoiceServer(server *Server) {
 				}
 			}
 
-			//Most likely in Database, change Time
+			// Update the "LastSeen" time for the connection
 			connIndex, conn := findConnectionByAddress(addr)
 			if conn != nil {
 				conn.LastSeen = time.Now().Unix()
 				server.Connections[connIndex] = *conn
 			}
+		}
+
+		_, conn := findConnectionByAddress(addr)
+		// Calculate elapsed time and KB/s
+		elapsedTime := time.Since(startTime)
+		// If more than 1 second has passed, calculate and print KB/s
+		if elapsedTime >= time.Second {
+			// Calculate KB/s for both received and sent data
+			recvKBps := float64(totalReceivedBytes) / 1024 / elapsedTime.Seconds()
+			sentKBps := float64(totalSentBytes) / 1024 / elapsedTime.Seconds()
+
+			// Print network stats per second
+			conn.ReceivedKBs = recvKBps
+			conn.SentKBs = sentKBps
+
+			// Reset stats for next second
+			totalReceivedBytes = 0
+			totalSentBytes = 0
+			startTime = time.Now()
+		}
+	}
+}
+
+// Helper function to update connection data (sent/received bytes)
+func updateConnectionData(server *Server, addr net.Addr, receivedBytes uint64, sentBytes uint64) {
+	// Find connection by address
+	for i, conn := range server.Connections {
+		if strings.Compare(conn.Address, addr.String()) == 0 {
+			// Update received and sent bytes for this connection
+			server.Connections[i].TotalReceivedBytes += receivedBytes
+			server.Connections[i].TotalSentBytes += sentBytes
+			return
 		}
 	}
 }
@@ -221,6 +259,10 @@ func UserListClearer(timeFrameS int64, server *Server) {
 	for {
 		//Check Last Seen
 		for i, item := range server.Connections {
+			if !server.Connections[i].CanAutoDisconnect {
+				continue
+			}
+
 			scaledTime := item.LastSeen + timeFrameS
 			//fmt.Println(scaledTime)
 			if scaledTime-time.Now().Unix() <= 0 {
@@ -241,6 +283,7 @@ func HostBothServers(server *Server, isDebug bool) {
 		fmt.Println("	- Additionally, Server is running in DEBUG MODE")
 	}
 
+	go runStats(server)
 	go launchMessageGateway(server)
 	go HostDataServer(server)
 	go HostVoiceServer(server)
