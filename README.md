@@ -96,6 +96,33 @@ audio settings, but also contains functions for sending and receiving audio.
 Both the lib and audiodriver files are very large and will prob require a full day to read thru them,
 Additionally there are a ton of functions that are not used but 'if its not broken, don't fix it.'
 
+# Performance and Optimization
+This project can defently be more optimized and could handle hundreds of users if Multi-threaded (Server side) and a few more optimizations
+
+Here is the Server Statistics for single user (talking and sending messages)
+```
+---- Server Info ----
+Name: Ethereal Storm
+Port: 3000
+
+---- Server Stats ----
+PID: 46164
+CPU Usage: 31.27%
+Memory Usage: 23.52 MB
+Disk Read: 0.00 MB | Disk Write: 0.00 MB
+Network Speed: Sent: 0.42 KB/s | Received: 0.53 KB/s
+Total Network: Sent: 4976.00 MB | Received: 60790.31 MB
+
+---- User Stats ----
+ChezyName | 127.0.0.1:52899
+-       Messages Sent: 81
+-       Network Speed: Sent: 0.00 KB/s | Received: 0.00 KB/s
+-       Total Network: Sent: 0.19 MB | Received: 0.00 MB
+```
+
+Currently CPU is kind of high running @ `Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz, 2592 Mhz, 6 Core(s), 12 Logical Processor(s)`
+Goal is to reduce CPU strain on Server
+
 # Credits and Copyright
 Discord 2 is an independent project and is not affiliated, associated, authorized, endorsed by, or in any way officially connected with Discord Inc. The name "Discord" and its logo are trademarks of Discord Inc. All rights regarding the Discord name and logo are owned by Discord Inc.
 

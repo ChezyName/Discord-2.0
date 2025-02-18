@@ -81,7 +81,8 @@ const ServerMenu = ({setSearch}:any) => {
           </Typography>
 
           <Typography id="modal-modal-description" sx={{ mt: 2, whiteSpace: "pre-wrap" }}>
-            Please enter a Server IP Address like 'discord.com' or '127.0.0.1:3001'.{"\n"}
+            Please enter a Server IP Address like 'discord.com' or 'localhost:3001'.{"\n"}
+            <strong>DO NOT USE LOCALHOST, USE 127.0.0.1</strong>
             <strong><i>port is needed</i></strong>
           </Typography>
 

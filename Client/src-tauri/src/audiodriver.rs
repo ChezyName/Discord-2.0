@@ -8,12 +8,6 @@
  *  - Audio Input Sub File
  *  - Audio Output Sub File
  *  - Audio Debugger Sub File
- * 
- * 
- * 
- * CHANGE FROM RODIO AS AUDIO OUTPUT TO CUSTOM MADE USING CPAL
- * SAME WAY AUDIO INPUT -> ENCODE -> PLAYED
- * SOCKET WAIT -> DECODE -> PLAY
  */
 
 pub fn print_type_of<T>(_: &T) {
@@ -433,8 +427,8 @@ impl AudioDriver {
                                 // TODO: Send audio via UDP socket every 20ms
                                 // Example: Encode with Opus @ 48kHz dual channel
                                 if consumer.iter().count() >= frame_samples {
-                                    //println!("[AUDIO DRIVER] Prepairing to Send 20ms of Data to Server");
-                                    //println!("[AUDIO DRIVER]    or {} samples", frame_samples);
+                                    println!("[AUDIO DRIVER] Prepairing to Send 20ms of Data to Server");
+                                    println!("[AUDIO DRIVER]    or {} samples", frame_samples);
 
                                     // println!("[AUDIO DRIVER/LIB] Sending Audio Data to Server");
 
@@ -442,14 +436,19 @@ impl AudioDriver {
                                     pcm_buffer.clear();
                                     for _ in 0..frame_samples {
                                         if let Some(sample) = consumer.try_pop() {
-                                            pcm_buffer.push(sample as f32); // Convert f32 to i16
+                                            pcm_buffer.push(sample as f32);
                                         }
                                     }
+
+                                    println!("Uploading to Server with Buffer Size: {}", pcm_buffer.len());
+
 
                                     // Compress the PCM data
                                     match encoder.encode_float(&pcm_buffer, &mut compressed_data) {
                                         Ok(compressed_size) => {
                                             compressed_data.truncate(compressed_size);
+
+                                            println!("Sending Data to Server of Size {} bytes.", compressed_size);
 
                                             let temp_data = compressed_data.clone(); // Clone the data for the async task
                                             let temp_ip = Arc::clone(&server_ip); // Clone server_ip
@@ -556,8 +555,8 @@ impl AudioDriver {
                 output_config.sample_rate.0,
             );
 
-            // Create a ring buffer for audio samples   {Force Dual Channel}
-            let ring = HeapRb::<f32>::new(input_sample_rate as usize * 2);
+            // Create a ring buffer for audio samples   {Force Dual Channel} * {2 seconds}
+            let ring = HeapRb::<f32>::new(input_sample_rate as usize * 2 * 2);
             let (mut producer, mut consumer) = ring.split();
 
             let volumes = AudioDriver::get_current_audio_volumes();
@@ -605,7 +604,7 @@ impl AudioDriver {
                         let mut pcm_audio = vec![0.0; 1920]; //1920 = 48khz * 0.02 * 2
 
                         if let Ok((len, addr)) = socket.recv_from(&mut buf).await {
-                            //println!("[AUDIO DRIVER/NET] {:?} bytes received from {:?}", len, addr);
+                            println!("[AUDIO DRIVER/NET] {:?} bytes received from {:?}", len, addr);
                             // Opus Decode -> Play Audio
 
                             //Need data in type of u8
@@ -615,13 +614,12 @@ impl AudioDriver {
                             match decoder.decode_float(Some(&vec_buf), &mut pcm_audio, false) {
                                 Ok(decoded_len) => {
                                     //Change to Different Sample Rate
-                                    //println!("[AUDIO DRIVER/NET] Recieved Packets, Decoded and Pushed into Device");
+                                    println!("[AUDIO DRIVER/NET] Recieved Packets, Decoded of Size: {}", decoded_len);
                                     if input_sample_rate != output_sample_rate {
-                                        //println!("[AUDIO DRIVER/NET] Resampling Packet to {}hz from 48khz", output_sample_rate);
                                         if !pcm_audio.is_empty() {
                                             pcm_audio = convert(
-                                                48000,
-                                                44100,
+                                                input_sample_rate,
+                                                output_sample_rate,
                                                 2,
                                                 ConverterType::Linear,
                                                 &pcm_audio,
@@ -640,12 +638,12 @@ impl AudioDriver {
                                         //println!("[AUDIO DRIVER/NET] Pushing {} Samples into Buffer.", channels);
                                         if (channels == 2) {
                                             if let Err(e) = producer.try_push(*sample) {
-                                                eprintln!("[LIB] Failed to push audio sample to ring buffer: {:?}", e);
+                                                eprintln!("[LIB/OUT] Failed to push audio sample to ring buffer: {:?}", e);
                                             }
                                         }
                                         else if (channels == 1 && i % 2 == 0){
                                             if let Err(e) = producer.try_push(*sample) {
-                                                eprintln!("[LIB] Failed to push audio sample to ring buffer: {:?}", e);
+                                                eprintln!("[LIB/OUT/SINGLE CHANNEL] Failed to push audio sample to ring buffer: {:?}", e);
                                             }
                                         }
                                     }

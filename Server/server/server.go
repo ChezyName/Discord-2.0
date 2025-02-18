@@ -2,7 +2,6 @@ package server
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -16,11 +15,11 @@ type VoiceConnection struct {
 	Name               string `json:"Name"`
 	LastSeen           int64  `json:"LastConnected"`
 	CanAutoDisconnect  bool
-	TotalReceivedBytes uint64  `json:"TotalReceivedBytes"`
-	TotalSentBytes     uint64  `json:"TotalSentBytes"`
-	ReceivedKBs        float64 `json:"ReceivedKBs"`
-	SentKBs            float64 `json:"SentKBs"`
-	MessagesSent       uint64  `json:"MessagesSent"`
+	TotalReceivedBytes uint64
+	TotalSentBytes     uint64
+	ReceivedKBs        float64
+	SentKBs            float64
+	MessagesSent       uint64
 }
 
 type ServerData struct {
@@ -40,6 +39,15 @@ type Server struct {
 
 	TotalReceivedBytes uint64
 	TotalSentBytes     uint64
+
+	TotalReceivedBytesVoice uint64
+	TotalSentBytesVoice     uint64
+
+	TotalReceivedBytesMessage uint64
+	TotalSentBytesMessage     uint64
+
+	TotalReceivedBytesData uint64
+	TotalSentBytesData     uint64
 
 	ReceivedBs float64
 	SentKBs    float64
@@ -95,6 +103,7 @@ func dataServerBaseURL(w http.ResponseWriter, r *http.Request) {
 
 	// Update the TotalReceivedBytes with the amount of bytes written in the response
 	server.TotalSentBytes += uint64(trackingWriter.bytesWritten)
+	server.TotalSentBytesData += uint64(trackingWriter.bytesWritten)
 }
 
 func HostDataServer(server *Server) {
@@ -103,7 +112,7 @@ func HostDataServer(server *Server) {
 	serverURLFull := server.Address + ":" + server.PortData
 
 	// Start the HTTPS server with SSL certificate and private key
-	fmt.Println("Starting HTTPS server on " + serverURLFull + " - [Messaing Gateway + Data Server]")
+	//fmt.Println("Starting HTTPS server on " + serverURLFull + " - [Messaing Gateway + Data Server]")
 	err := http.ListenAndServe(serverURLFull, nil)
 	if err != nil {
 		log.Fatalf("Server failed to start: %v", err)
@@ -124,19 +133,19 @@ func HostVoiceServer(server *Server) {
 	// Create a UDP address to listen on (e.g., port 8080)
 	address, err := net.ResolveUDPAddr("udp", server.Address+":"+server.PortVoice)
 	if err != nil {
-		fmt.Println("Error resolving address:", err)
+		//fmt.Println("Error resolving address:", err)
 		return
 	}
 
 	// Create a UDP connection to listen for incoming data
 	conn, err := net.ListenUDP("udp", address)
 	if err != nil {
-		fmt.Println("Error listening on address:", err)
+		//fmt.Println("Error listening on address:", err)
 		return
 	}
 	defer conn.Close()
 
-	fmt.Println("UDP server listening on " + server.Address + ":" + server.PortVoice)
+	//fmt.Println("UDP server listening on " + server.Address + ":" + server.PortVoice)
 
 	// Buffer to store incoming data
 	buffer := make([]byte, 2048)
@@ -150,7 +159,7 @@ func HostVoiceServer(server *Server) {
 	for {
 		n, addr, err := conn.ReadFromUDP(buffer)
 		if err != nil {
-			fmt.Println("Error reading from UDP:", err)
+			//fmt.Println("Error reading from UDP:", err)
 			continue
 		}
 
@@ -181,10 +190,10 @@ func HostVoiceServer(server *Server) {
 			if index == -1 {
 				// Create new User
 				server.Connections = append(server.Connections, NewVC)
-				fmt.Println("New User: '" + username + "' Has Connected on " + addr.String())
+				//fmt.Println("New User: '" + username + "' Has Connected on " + addr.String())
 			} else {
 				server.Connections[index] = NewVC
-				fmt.Println("Returning User: '" + username + "' Has Connected on " + addr.String())
+				//fmt.Println("Returning User: '" + username + "' Has Connected on " + addr.String())
 			}
 		} else if strings.Contains(string(buffer[:n]), "hb") {
 			// Heartbeat: Update last seen time
@@ -215,11 +224,12 @@ func HostVoiceServer(server *Server) {
 				return
 			}
 
-			fmt.Println("User Disconnected: " + server.Connections[index].Name + ".")
+			//fmt.Println("User Disconnected: " + server.Connections[index].Name + ".")
 			server.Connections[index] = server.Connections[len(server.Connections)-1]
 			server.Connections = server.Connections[:len(server.Connections)-1]
 		} else {
 			// This is Audio Data
+			server.TotalReceivedBytesVoice += uint64(n)
 			for _, item := range server.Connections {
 				// Send Audio Data if NOT self
 				if strings.Compare(item.Address, addr.String()) != 0 || debugMode {
@@ -229,13 +239,13 @@ func HostVoiceServer(server *Server) {
 					updateConnectionData(server, addr, 0, uint64(n))
 
 					server.TotalSentBytes += uint64(n)
-					server.TotalReceivedBytes += uint64(n) * 5
+					server.TotalSentBytesVoice += uint64(n)
 
 					if err != nil {
-						fmt.Println("Error sending voice data to {"+addr.String()+"}, err:", err)
+						//fmt.Println("Error sending voice data to {"+addr.String()+"}, err:", err)
 						continue
 					} else {
-						fmt.Println("Sending voice data to {" + addr.String() + "}")
+						//fmt.Println("Sending voice data to {" + addr.String() + "}")
 					}
 				}
 			}
@@ -256,7 +266,7 @@ func HostVoiceServer(server *Server) {
 		elapsedTime := time.Since(startTime).Seconds()
 		if elapsedTime >= 1 {
 			kbps := float64(totalBytesReceived*8) / elapsedTime / 1000
-			fmt.Printf("Speed: %.2f Kbps\n", kbps)
+			//fmt.Printf("Speed: %.2f Kbps\n", kbps)
 
 			totalBytesReceived = 0
 			startTime = time.Now()
@@ -284,15 +294,11 @@ func UserListClearer(timeFrameS int64, server *Server) {
 	for {
 		//Check Last Seen
 		for i, item := range server.Connections {
-			if !server.Connections[i].CanAutoDisconnect {
-				continue
-			}
-
 			scaledTime := item.LastSeen + timeFrameS
-			//fmt.Println(scaledTime)
+			////fmt.Println(scaledTime)
 			if scaledTime-time.Now().Unix() <= 0 {
 				//remove from connections
-				fmt.Println("Removing: " + server.Connections[i].Name + ".")
+				//fmt.Println("Removing: " + server.Connections[i].Name + ".")
 				server.Connections[i] = server.Connections[len(server.Connections)-1]
 				server.Connections = server.Connections[:len(server.Connections)-1]
 			}
@@ -311,11 +317,11 @@ func UpdateServerStats(server *Server) {
 }
 
 func HostBothServers(server *Server, isDebug bool) {
-	fmt.Println("Server '" + server.ServerName + "' is Ready")
+	//fmt.Println("Server '" + server.ServerName + "' is Ready")
 	debugMode = isDebug
 
 	if isDebug {
-		fmt.Println("	- Additionally, Server is running in DEBUG MODE")
+		//fmt.Println("	- Additionally, Server is running in DEBUG MODE")
 	}
 
 	go launchMessageGateway(server)

@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -52,6 +51,7 @@ func getAllMessages(conn *Connection, server *Server) []Message {
 	}
 
 	server.TotalSentBytes += bytes
+	server.TotalSentBytesMessage += bytes
 
 	return Messages
 }
@@ -84,17 +84,17 @@ func launchMessageGateway(server *Server) *socket.Server {
 		//init function is when the user handshakes and is preped
 		client.On("init", func(data ...any) {
 			if len(data) <= 0 {
-				fmt.Println("[MSG SERVER] Client Not Allowed: " + client.Handshake().Address + " Used Invalid Display Name on Init")
+				//fmt.Println("[MSG SERVER] Client Not Allowed: " + client.Handshake().Address + " Used Invalid Display Name on Init")
 				return
 			}
 
 			displayName, ok := data[0].(string)
 
 			if !ok {
-				fmt.Println("[MSG SERVER] Client Not Allowed: " + client.Handshake().Address + " Used Invalid Display Name on Init")
+				//fmt.Println("[MSG SERVER] Client Not Allowed: " + client.Handshake().Address + " Used Invalid Display Name on Init")
 				return
 			} else {
-				fmt.Println("[MSG SERVER] Client Joined: " + client.Handshake().Address + " // " + displayName)
+				//fmt.Println("[MSG SERVER] Client Joined: " + client.Handshake().Address + " // " + displayName)
 
 				//search for IP if already is inside list
 				connIndex := FindConnectionByIP(client.Handshake().Address)
@@ -140,6 +140,7 @@ func launchMessageGateway(server *Server) *socket.Server {
 				}
 
 				server.TotalReceivedBytes = uint64(len(displayName))
+				server.TotalReceivedBytesMessage = uint64(len(displayName))
 			}
 		})
 
@@ -156,19 +157,19 @@ func launchMessageGateway(server *Server) *socket.Server {
 
 		client.On("msg", func(data ...any) {
 			if len(data) <= 0 {
-				fmt.Println("[MSG SERVER] Client Not Allowed: " + client.Handshake().Address + " Send Invalid Message")
+				//fmt.Println("[MSG SERVER] Client Not Allowed: " + client.Handshake().Address + " Send Invalid Message")
 				return
 			}
 
 			msg, ok := data[0].(string)
 			if !ok {
-				fmt.Println("[MSG SERVER] Client Not Allowed: " + client.Handshake().Address + " Send Invalid Message")
+				//fmt.Println("[MSG SERVER] Client Not Allowed: " + client.Handshake().Address + " Send Invalid Message")
 				return
 			} else {
 				index := FindConnectionByIP(client.Handshake().Address)
 				if index == -1 {
 					//cannot send messages if not connected
-					fmt.Println("[MSG SERVER] Client Not Allowed: " + client.Handshake().Address + " Not Connected but Sending Messages")
+					//fmt.Println("[MSG SERVER] Client Not Allowed: " + client.Handshake().Address + " Not Connected but Sending Messages")
 					return
 				}
 
@@ -181,7 +182,7 @@ func launchMessageGateway(server *Server) *socket.Server {
 					TimeStamp:   time.Now().Unix(),
 				})
 
-				fmt.Println("[MSG SERVER] New Message from " + displayName + ".")
+				//fmt.Println("[MSG SERVER] New Message from " + displayName + ".")
 
 				io.Emit("msg", MessageReturn{
 					MessageCount: len(Messages),
@@ -202,12 +203,13 @@ func launchMessageGateway(server *Server) *socket.Server {
 				}
 
 				server.TotalReceivedBytes = uint64(len(msg))
+				server.TotalReceivedBytesMessage = uint64(len(msg))
 			}
 		})
 
 		//when user leaves the (by choice or disconnected via internet issues)
 		client.On("disconnect", func(...any) {
-			fmt.Println("[MSG SERVER] Client Disconnected from Message Server")
+			//fmt.Println("[MSG SERVER] Client Disconnected from Message Server")
 		})
 	})
 
