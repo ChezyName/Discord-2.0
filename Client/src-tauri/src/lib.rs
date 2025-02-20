@@ -37,14 +37,6 @@ fn start_audio_loop(state: tauri::State<Arc<Mutex<DiscordDriver>>>) {
 
         // Create a UDP socket
         let new_socket = match tokio::net::UdpSocket::bind("0.0.0.0:0").await {
-            Ok(new_socket) => new_socket,
-            Err(e) => {
-                eprintln!("[LIB] Failed to bind UDP socket: {}", e);
-                return;
-            }
-        };
-
-        let socket = Arc::new(new_socket);
 
         driver.can_send_audio = true;
 

@@ -48,3 +48,4 @@ To run the server, just simply execute the executable or using source code run `
 
 to change the name just attach `-name=YOUR_NAME_HERE`, for example `-name=DiscordTwoo`
 to debug the server, just attach `-debug=true`
+AHHHHHHHHHHHHHH
