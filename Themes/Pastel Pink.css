@@ -1,0 +1,8 @@
+:root {
+    --Primary: rgba(255, 182, 193, 0.5); /* Soft pink */
+    --Secondary: rgb(255, 240, 245); /* Lavender blush */
+    --Background: hsl(330, 100%, 98%); /* Very light pink */
+    --Outlines: hsl(330deg 40% 70% / 60%); /* Soft rose outline */
+    --Text: #222; /* Dark text for contrast */
+    --Interactable: hsl(330, 50%, 90%);
+}

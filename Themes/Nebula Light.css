@@ -1,0 +1,8 @@
+:root {
+    --Primary: rgba(186, 85, 211, 0.5); /* Medium orchid */
+    --Secondary: rgb(245, 230, 255); /* Very pale lavender */
+    --Background: hsl(270, 80%, 95%); /* Soft violet */
+    --Outlines: hsl(270deg 40% 60% / 60%); /* Muted purple outline */
+    --Text: #3D1B5C; /* Deep violet for contrast */
+    --Interactable: hsl(270, 50%, 85%);
+}

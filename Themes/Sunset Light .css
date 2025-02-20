@@ -1,0 +1,8 @@
+:root {
+    --Primary: rgba(255, 94, 77, 0.5); /* Sunset red-orange */
+    --Secondary: rgb(255, 229, 180); /* Warm peach */
+    --Background: hsl(30, 100%, 96%); /* Light warm beige */
+    --Outlines: hsl(30deg 50% 60% / 60%); /* Subtle golden outline */
+    --Text: #5A3E36; /* Deep brown for contrast */
+    --Interactable: hsl(30, 70%, 85%);
+}

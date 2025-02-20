@@ -1,0 +1,8 @@
+:root {
+    --Primary: rgba(0, 191, 255, 0.5); /* Deep sky blue */
+    --Secondary: rgb(224, 247, 250); /* Light cyan */
+    --Background: hsl(190, 80%, 95%); /* Soft aqua */
+    --Outlines: hsl(190deg 40% 60% / 60%); /* Cool teal outline */
+    --Text: #04395E; /* Deep blue for readability */
+    --Interactable: hsl(190, 60%, 85%);
+}

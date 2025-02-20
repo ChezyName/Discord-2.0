@@ -555,8 +555,8 @@ impl AudioDriver {
                 output_config.sample_rate.0,
             );
 
-            // Create a ring buffer for audio samples   {Force Dual Channel} * {2 seconds}
-            let ring = HeapRb::<f32>::new(input_sample_rate as usize * 2 * 2);
+            // Create a ring buffer for audio samples   {Force Dual Channel}
+            let ring = HeapRb::<f32>::new(input_sample_rate as usize * 2);
             let (mut producer, mut consumer) = ring.split();
 
             let volumes = AudioDriver::get_current_audio_volumes();
