@@ -100,24 +100,42 @@ Additionally there are a ton of functions that are not used but 'if its not brok
 This project can defently be more optimized and could handle hundreds of users if Multi-threaded (Server side) and a few more optimizations
 
 Here is the Server Statistics for single user (talking and sending messages)
+> Note this is done locally meaning there is no packet loss and zero RTT
 ```
 ---- Server Info ----
-Name: Ethereal Storm
+Name: Solemn Haven
 Port: 3000
+Uptime: 00:01:37
 
 ---- Server Stats ----
-PID: 46164
-CPU Usage: 31.27%
-Memory Usage: 23.52 MB
-Disk Read: 0.00 MB | Disk Write: 0.00 MB
-Network Speed: Sent: 0.42 KB/s | Received: 0.53 KB/s
-Total Network: Sent: 4976.00 MB | Received: 60790.31 MB
+PID: 18332
+CPU Usage: 44.34%
+Memory Usage: 18.25 MB
+Disk Read: 0.00 MB
+Disk Write: 0.00 MB
+
+---- Network Stats ----
+Network Speed           | Sent: 69.62 KB/s | Received: 33.17 KB/s
+Network Speed [VOICE]   | Sent: 1.78 KB/s  | Received: 31.98 KB/s
+
+Total Network           | Sent: 1862.10 KB   | Received: 910.72 KB
+Total Network [VOICE]   | Sent: 1823.54 KB   | Received: 927.98 KB
+Total Network [MESSAGE] | Sent: 0.00 KB      | Received: 0.01 KB
+Total Network [DATA]    | Sent: 38.55 KB     | Received: 0.00 KB
 
 ---- User Stats ----
-ChezyName | 127.0.0.1:52899
--       Messages Sent: 81
--       Network Speed: Sent: 0.00 KB/s | Received: 0.00 KB/s
--       Total Network: Sent: 0.19 MB | Received: 0.00 MB
+ChezyName | 127.0.0.1:63246
+          Messages Sent: 0
+          Network Speed: Sent: 10.76 KB/s  | Received: 5.38 KB/s
+          Total Network: Sent: 610.09 KB   | Received: 320.71 KB
+Chezy | 127.0.0.1:51730
+      Messages Sent: 0
+      Network Speed: Sent: 11.16 KB/s  | Received: 5.58 KB/s
+      Total Network: Sent: 634.18 KB   | Received: 318.52 KB
+ChezyDev | 127.0.0.1:51732
+          Messages Sent: 0
+          Network Speed: Sent: 10.06 KB/s  | Received: 5.03 KB/s
+          Total Network: Sent: 579.27 KB   | Received: 290.26 KB
 ```
 
 Currently CPU is kind of high running @ `Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz, 2592 Mhz, 6 Core(s), 12 Logical Processor(s)`
