@@ -126,4 +126,4 @@ Goal is to reduce CPU strain on Server
 # Credits and Copyright
 Discord 2 is an independent project and is not affiliated, associated, authorized, endorsed by, or in any way officially connected with Discord Inc. The name "Discord" and its logo are trademarks of Discord Inc. All rights regarding the Discord name and logo are owned by Discord Inc.
 
-[MIT](/LICENSE) © ChezyName 2024
+[MIT](/LICENSE) © ChezyName 2024 - 2025
